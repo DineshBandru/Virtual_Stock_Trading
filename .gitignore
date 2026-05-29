@@ -1,1 +1,12 @@
-node_modules
+node_modules/
+
+.env
+client/.env
+server/.env
+
+dist/
+build/
+
+.vscode/
+
+*.log.env
