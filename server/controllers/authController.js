@@ -31,7 +31,8 @@ const register = async (req, res, next) => {
       email: user.email,
       role: user.role,
       balance: user.balance,
-      avatar: user.avatar
+      avatar: user.avatar,
+      hasSeenTour: user.hasSeenTour
     });
   } catch (err) {
     return next(err);
@@ -61,7 +62,8 @@ const login = async (req, res, next) => {
       email: user.email,
       role: user.role,
       balance: user.balance,
-      avatar: user.avatar
+      avatar: user.avatar,
+      hasSeenTour: user.hasSeenTour
     });
   } catch (err) {
     return next(err);
@@ -85,4 +87,20 @@ const me = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, logout, me };
+const setTourSeen = async (req, res, next) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { hasSeenTour: true },
+      { new: true, select: "-password" }
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.json(user);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+module.exports = { register, login, logout, me, setTourSeen };

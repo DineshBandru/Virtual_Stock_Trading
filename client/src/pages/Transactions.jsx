@@ -1,5 +1,6 @@
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
+import { Skeleton } from "../components/Skeleton";
 
 const Transactions = () => {
   return (
@@ -22,8 +23,11 @@ const Transactions = () => {
               Type filter
             </span>
           </div>
-          <div className="rounded-2xl border border-dashed border-borderGlow/60 p-10 text-center text-xs text-slate-400">
-            Transaction table renders here.
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/6" />
           </div>
         </div>
       </GlassPanel>

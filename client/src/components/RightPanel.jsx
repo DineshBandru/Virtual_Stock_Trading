@@ -17,7 +17,7 @@ const RightPanel = () => {
           Market News
         </h3>
         <p className="text-xs text-slate-400">
-          News feed connects to Finnhub / News API.
+          News feed connects to Yahoo Finance / News API.
         </p>
       </GlassPanel>
 

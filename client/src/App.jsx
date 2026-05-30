@@ -4,7 +4,10 @@ import AuthLayout from "./components/AuthLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { PracticeModeProvider } from "./context/PracticeModeContext";
 import ToastContainer from "./components/ToastContainer";
+import OnboardingTour from "./components/OnboardingTour";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
@@ -21,10 +24,12 @@ import Admin from "./pages/Admin";
 
 const App = () => {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <div className="app-scanlines min-h-screen bg-base text-white">
-          <Routes>
+    <ThemeProvider>
+      <PracticeModeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <div className="app-scanlines min-h-screen bg-white text-base dark:bg-base dark:text-white transition-colors">
+              <Routes>
           <Route path="/" element={<Home />} />
           <Route
             path="/login"
@@ -135,9 +140,12 @@ const App = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <ToastContainer />
+          <OnboardingTour />
         </div>
-      </ToastProvider>
-    </AuthProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </PracticeModeProvider>
+    </ThemeProvider>
   );
 };
 

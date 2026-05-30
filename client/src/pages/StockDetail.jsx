@@ -4,6 +4,7 @@ import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import CandlestickChart from "../components/charts/CandlestickChart";
 import ConfirmModal from "../components/ConfirmModal";
+import { Skeleton } from "../components/Skeleton";
 import useStockDetail from "../hooks/useStockDetail";
 import api from "../utils/api";
 import useToast from "../hooks/useToast";
@@ -20,10 +21,16 @@ const StockDetail = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const { push } = useToast();
 
-  const { quote, profile, signal, candles, changePct, loading } = useStockDetail(
-    symbol,
-    period
-  );
+  const {
+    quote,
+    profile,
+    signal,
+    candles,
+    changePct,
+    loading,
+    error: loadError,
+    refresh
+  } = useStockDetail(symbol, period);
 
   const estimatedTotal = useMemo(() => {
     if (!quote || !quantity) return 0;
@@ -69,7 +76,13 @@ const StockDetail = () => {
               Live Quote
             </span>
             <span className="font-mono text-xl text-white">
-              {quote?.c ? `₹${quote.c.toFixed(2)}` : "—"}
+              {loading ? (
+                <Skeleton className="h-6 w-24" />
+              ) : quote?.c ? (
+                `₹${quote.c.toFixed(2)}`
+              ) : (
+                "—"
+              )}
             </span>
           </div>
           <span
@@ -79,6 +92,19 @@ const StockDetail = () => {
           </span>
         </div>
       </div>
+
+      {loadError ? (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={refresh}
+            className="rounded-xl border border-red-300/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-100 transition hover:bg-red-500/20"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
@@ -99,7 +125,13 @@ const StockDetail = () => {
             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
               {item.label}
             </p>
-            <p className="mt-2 font-mono text-sm text-white">{item.value}</p>
+            <div className="mt-2">
+              {loading ? (
+                <Skeleton className="h-4 w-28" />
+              ) : (
+                <p className="font-mono text-sm text-white">{item.value}</p>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -107,7 +139,7 @@ const StockDetail = () => {
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <GlassPanel className="min-h-[360px]">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+            <h3 className="hidden lg:block text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
               Candlestick Chart
             </h3>
             <div className="flex gap-2 text-xs text-slate-400">
@@ -128,13 +160,25 @@ const StockDetail = () => {
             </div>
           </div>
           <div className="mt-6 rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
-            <CandlestickChart data={candles} height={260} />
+            {loading ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : (
+              <CandlestickChart data={candles} height={260} />
+            )}
+          </div>
+
+          <div className="mt-6">
+            <h4 className="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">Compare Symbol</h4>
+            <div className="flex gap-2">
+               <input type="text" placeholder="Enter NSE Symbol..." className="flex-1 bg-panel/50 border border-borderGlow/50 rounded-xl px-4 py-2 outline-none text-white text-sm" />
+               <button className="bg-cyan/10 text-cyan border border-cyan/50 rounded-xl px-4 py-2 text-sm font-semibold hover:bg-cyan/20 transition">Compare</button>
+            </div>
           </div>
         </GlassPanel>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 fixed bottom-0 left-0 right-0 z-40 p-4 bg-panel/95 backdrop-blur-xl border-t border-borderGlow/60 rounded-t-3xl lg:static lg:z-auto lg:p-0 lg:bg-transparent lg:backdrop-blur-none lg:border-none lg:rounded-none">
           <GlassPanel>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+            <h3 className="hidden lg:block text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
               Buy / Sell
             </h3>
             <div className="mt-6 flex gap-2 rounded-xl border border-borderGlow/60 bg-base/70 p-1 text-xs">

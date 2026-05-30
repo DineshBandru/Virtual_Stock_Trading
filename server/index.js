@@ -24,21 +24,32 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (!allowedOrigins.includes("http://localhost:3001")) {
+  allowedOrigins.push("http://localhost:3001");
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true
+};
+
 const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    credentials: true
-  }
+  cors: corsOptions
 });
 
 attachSocket(io);
 
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    credentials: true
-  })
-);
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 

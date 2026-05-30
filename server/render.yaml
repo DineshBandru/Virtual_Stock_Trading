@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: emp3-server
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+    autoDeploy: false

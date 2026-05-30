@@ -1,7 +1,9 @@
+import { Link } from "react-router-dom";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import CandlestickChart from "../components/charts/CandlestickChart";
+import HeatmapCalendar from "../components/HeatmapCalendar";
 import useLivePrices from "../hooks/useLivePrices";
 
 const Dashboard = () => {
@@ -9,18 +11,54 @@ const Dashboard = () => {
   const livePrices = useLivePrices();
   const symbols = Object.keys(livePrices).slice(0, 6);
 
+  const quickLinks = [
+    { label: "Portfolio", path: "/portfolio" },
+    { label: "Watchlist", path: "/watchlist" },
+    { label: "Transactions", path: "/transactions" },
+    { label: "Alerts", path: "/alerts" },
+    { label: "Analytics", path: "/analytics" },
+    { label: "Leaderboard", path: "/leaderboard" },
+    { label: "Competitions", path: "/competitions" }
+  ];
+
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Terminal Dashboard"
-        subtitle="Real-time market intelligence, AI signals, and your virtual capital overview."
-      />
+      <div className="flex flex-col gap-4">
+        <PageHeader
+          title="Terminal Dashboard"
+          subtitle="Real-time market intelligence, AI signals, and your virtual capital overview."
+        />
+        <div className="dashboard-search mt-4">
+          <input 
+            type="text" 
+            placeholder="Search NSE Stocks (e.g. RELIANCE)..." 
+            className="w-full xl:w-1/2 px-4 py-3 bg-panel/70 border border-borderGlow/60 rounded-xl text-slate-900 dark:text-white outline-none focus:border-cyan transition"
+          />
+        </div>
+      </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 dashboard-portfolio-card">
         <StatCard label="Virtual Balance" value="—" accent="cyan" />
         <StatCard label="Portfolio Value" value="—" accent="amber" />
         <StatCard label="Today's P&L" value="—" accent="cyan" />
       </div>
+
+      <GlassPanel>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+          Quick Links
+        </h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickLinks.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className="rounded-xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-cyan/60 hover:text-cyan"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </GlassPanel>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <GlassPanel className="min-h-[320px]">
@@ -35,15 +73,13 @@ const Dashboard = () => {
           </div>
         </GlassPanel>
 
-        <GlassPanel className="min-h-[320px]">
+        <GlassPanel className="min-h-[320px] flex flex-col">
           <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
-            AI Signal Summary
+            P&L Heatmap
           </h3>
-          <div className="mt-6 space-y-4 text-sm text-slate-300">
-            <p>Signals appear when 30-day price history is loaded.</p>
-            <div className="rounded-xl border border-borderGlow/60 bg-base/70 p-4 text-xs text-slate-400">
-              SMA/RSI logic explanation will surface here.
-            </div>
+          <p className="text-xs text-slate-400 mt-2">Daily profit/loss visualization</p>
+          <div className="mt-auto bg-base/70 p-4 rounded-xl border border-borderGlow/60">
+             <HeatmapCalendar data={[{date: new Date().toISOString().split('T')[0], pnl: 250}]} />
           </div>
         </GlassPanel>
       </div>

@@ -1,6 +1,34 @@
-const { finnhubRequest } = require("../utils/finnhub");
-const { getQuote, getProfile, getHistory } = require("../utils/market");
+const yahooFinance = require("yahoo-finance2").default;
+const {
+  getQuote,
+  getProfile,
+  getHistory,
+  ensureNseSymbol
+} = require("../utils/market");
 const { getSignal } = require("../utils/aiSignal");
+
+const TRENDING_NSE = [
+  { symbol: "RELIANCE.NS", name: "Reliance Industries" },
+  { symbol: "TCS.NS", name: "Tata Consultancy Services" },
+  { symbol: "INFY.NS", name: "Infosys" },
+  { symbol: "HDFCBANK.NS", name: "HDFC Bank" },
+  { symbol: "ICICIBANK.NS", name: "ICICI Bank" },
+  { symbol: "SBIN.NS", name: "State Bank of India" },
+  { symbol: "ITC.NS", name: "ITC" },
+  { symbol: "LT.NS", name: "Larsen and Toubro" },
+  { symbol: "BHARTIARTL.NS", name: "Bharti Airtel" },
+  { symbol: "KOTAKBANK.NS", name: "Kotak Mahindra Bank" },
+  { symbol: "HINDUNILVR.NS", name: "Hindustan Unilever" },
+  { symbol: "ASIANPAINT.NS", name: "Asian Paints" },
+  { symbol: "BAJFINANCE.NS", name: "Bajaj Finance" },
+  { symbol: "HCLTECH.NS", name: "HCL Technologies" },
+  { symbol: "AXISBANK.NS", name: "Axis Bank" },
+  { symbol: "WIPRO.NS", name: "Wipro" },
+  { symbol: "ADANIENT.NS", name: "Adani Enterprises" },
+  { symbol: "SUNPHARMA.NS", name: "Sun Pharma" },
+  { symbol: "TITAN.NS", name: "Titan" },
+  { symbol: "MARUTI.NS", name: "Maruti Suzuki" }
+];
 
 const searchStocks = async (req, res, next) => {
   try {
@@ -8,8 +36,12 @@ const searchStocks = async (req, res, next) => {
     if (!query) {
       return res.status(400).json({ message: "Missing query" });
     }
-    const data = await finnhubRequest("/search", { q: query });
-    return res.json(data);
+    const data = await yahooFinance.search(query);
+    const results = (data?.quotes || []).slice(0, 10).map((item) => ({
+      symbol: ensureNseSymbol(item.symbol || ""),
+      description: item.shortname || item.longname || item.symbol
+    }));
+    return res.json({ count: results.length, result: results });
   } catch (err) {
     return next(err);
   }
@@ -61,11 +93,12 @@ const getHistoryByPeriod = async (req, res, next) => {
 
 const getTrending = async (req, res, next) => {
   try {
-    const symbols = await finnhubRequest("/stock/symbol", { exchange: "US" });
-    const top = symbols.slice(0, 15).map((item) => item.symbol);
-    const quotes = await Promise.all(top.map((symbol) => getQuote(symbol)));
-    const payload = top.map((symbol, index) => ({
-      symbol,
+    const quotes = await Promise.all(
+      TRENDING_NSE.map((item) => getQuote(item.symbol))
+    );
+    const payload = TRENDING_NSE.map((item, index) => ({
+      symbol: item.symbol,
+      name: item.name,
       quote: quotes[index]
     }));
     return res.json(payload);
