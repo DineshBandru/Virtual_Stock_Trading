@@ -4,6 +4,10 @@ const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 const { Server } = require("socket.io");
 
 const authRoutes = require("./routes/auth");
@@ -32,6 +36,10 @@ const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
 if (!allowedOrigins.includes("http://localhost:3001")) {
   allowedOrigins.push("http://localhost:3001");
 }
+// allow the dev server on alternate port (vite may pick 3002+)
+if (!allowedOrigins.includes("http://localhost:3002")) {
+  allowedOrigins.push("http://localhost:3002");
+}
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -49,9 +57,22 @@ const io = new Server(server, {
 
 attachSocket(io);
 
+// Security middleware
+app.use(helmet());
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
+app.use(mongoSanitize());
+app.use(xss());
+// Rate limiters
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+const sensitiveLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+
+app.use(express.json({ limit: "2mb" }));
+
+// Apply authLimiter to auth endpoints
+app.use('/api/auth', authLimiter);
+// Apply sensitiveLimiter to trade, admin, transactions endpoints
+app.use(['/api/trade', '/api/admin', '/api/transactions'], sensitiveLimiter);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

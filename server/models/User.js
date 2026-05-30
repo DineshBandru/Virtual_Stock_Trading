@@ -9,6 +9,13 @@ const userSchema = new mongoose.Schema(
     balance: { type: Number, default: 1000000 },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     hasSeenTour: { type: Boolean, default: false }
+    ,tokenVersion: { type: Number, default: 0 }
+    ,failedLoginAttempts: { type: Number, default: 0 }
+    ,lockUntil: { type: Date }
+    ,mfa: {
+      enabled: { type: Boolean, default: false },
+      secret: { type: String }
+    }
   },
   { timestamps: true }
 );
