@@ -20,7 +20,7 @@
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.4",
-    "qrcode": "^1.5.1",
+    "qrcode": "^1.5.4",
     "socket.io": "^4.7.5",
     "speakeasy": "^2.0.0",
     "virtual-stock-platform": "file:..",

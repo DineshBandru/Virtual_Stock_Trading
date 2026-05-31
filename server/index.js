@@ -95,8 +95,27 @@ app.use(errorHandler);
 const port = process.env.PORT || 5000;
 const mongoUri = process.env.MONGO_URI;
 
-mongoose
-  .connect(mongoUri)
+const connectWithRetry = async (maxAttempts = 5) => {
+  let attempt = 1;
+  while (attempt <= maxAttempts) {
+    try {
+      await mongoose.connect(mongoUri, {
+        serverSelectionTimeoutMS: 15000,
+        connectTimeoutMS: 15000
+      });
+      return;
+    } catch (err) {
+      if (attempt === maxAttempts) {
+        throw err;
+      }
+      console.error(`Mongo connection attempt ${attempt} failed:`, err.message);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      attempt += 1;
+    }
+  }
+};
+
+connectWithRetry()
   .then(() => {
     server.listen(port, () => {
       console.log(`Server running on port ${port}`);

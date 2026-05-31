@@ -123,7 +123,7 @@ const logout = async (req, res) => {
   try {
     const token = req.cookies && req.cookies.refreshToken;
     if (token) {
-      await RefreshToken.findOneAndUpdate({ token }, { revoked: true, revokedAt: new Date() });
+      await RefreshToken.findOneAndUpdate({ tokenHash: hashToken(token) }, { revoked: true, revokedAt: new Date() });
     }
     clearAuthCookies(res);
     return res.json({ message: "Logged out" });
@@ -138,9 +138,7 @@ const refresh = async (req, res, next) => {
     if (!token) return res.status(401).json({ message: 'No refresh token' });
     const tokenHash = hashToken(token);
     const doc = await RefreshToken.findOne({ tokenHash });
-    // token reuse detection: if doc revoked -> possible reuse
     if (!doc) {
-      // can't find token — potential theft or reuse; attempt best-effort mitigation
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
     if (doc.revoked || doc.expires < new Date()) {

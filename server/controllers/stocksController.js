@@ -1,4 +1,4 @@
-const yahooFinance = require("yahoo-finance2").default;
+const YahooFinance = require("yahoo-finance2").default;
 const {
   getQuote,
   getProfile,
@@ -6,6 +6,8 @@ const {
   ensureNseSymbol
 } = require("../utils/market");
 const { getSignal } = require("../utils/aiSignal");
+
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const TRENDING_NSE = [
   { symbol: "RELIANCE.NS", name: "Reliance Industries" },
