@@ -14,7 +14,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import StockDetail from "./pages/StockDetail";
 import Portfolio from "./pages/Portfolio";
+import Positions from "./pages/Positions";
 import Transactions from "./pages/Transactions";
+import Orders from "./pages/Orders";
 import Watchlist from "./pages/Watchlist";
 import Alerts from "./pages/Alerts";
 import Leaderboard from "./pages/Leaderboard";
@@ -68,11 +70,31 @@ const App = () => {
             }
           />
           <Route
+            path="/positions"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <Positions />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/transactions"
             element={
               <ProtectedRoute>
                 <AppShell>
                   <Transactions />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <Orders />
                 </AppShell>
               </ProtectedRoute>
             }

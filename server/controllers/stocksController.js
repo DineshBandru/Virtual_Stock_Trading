@@ -79,8 +79,12 @@ const getHistoryByPeriod = async (req, res, next) => {
       resolution = "60";
     } else if (period === "3M") {
       from = now - 60 * 60 * 24 * 90;
+    } else if (period === "6M") {
+      from = now - 60 * 60 * 24 * 182;
     } else if (period === "1Y") {
       from = now - 60 * 60 * 24 * 365;
+    } else if (period === "5Y") {
+      from = now - 60 * 60 * 24 * 365 * 5;
     }
 
     const data = await getHistory(symbol, resolution, from, now);

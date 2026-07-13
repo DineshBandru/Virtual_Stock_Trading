@@ -1,10 +1,12 @@
 import { NavLink } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
-import { Home, PieChart, LayoutList, Trophy } from "lucide-react";
+import { Home, PieChart, LayoutList, Trophy, ListOrdered, Activity } from "lucide-react";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
+  { path: "/orders", label: "Orders", icon: ListOrdered },
   { path: "/portfolio", label: "Portfolio", icon: PieChart },
+  { path: "/positions", label: "Positions", icon: Activity },
   { path: "/watchlist", label: "Watchlist", icon: LayoutList },
   { path: "/leaderboard", label: "Ranks", icon: Trophy }
 ];

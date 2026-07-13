@@ -6,7 +6,9 @@ import { usePracticeMode } from "../context/PracticeModeContext";
 const navItems = [
   { path: "/", label: "Dashboard" },
   { path: "/portfolio", label: "Portfolio" },
+  { path: "/positions", label: "Positions" },
   { path: "/transactions", label: "Transactions" },
+  { path: "/orders", label: "Orders" },
   { path: "/watchlist", label: "Watchlist" },
   { path: "/alerts", label: "Alerts" },
   { path: "/analytics", label: "Analytics" },

@@ -1,7 +1,4 @@
-const User = require("../models/User");
-const Portfolio = require("../models/Portfolio");
-const Transaction = require("../models/Transaction");
-const { getQuote, getProfile } = require("../utils/market");
+const { placeOrder } = require("../services/orderService");
 
 const buy = async (req, res, next) => {
   try {
@@ -10,58 +7,23 @@ const buy = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid quantity" });
     }
 
-    const [quote, profile, user] = await Promise.all([
-      getQuote(symbol),
-      getProfile(symbol),
-      User.findById(req.user.id)
-    ]);
-
-    const price = quote.c;
-    if (!price) {
-      return res.status(400).json({ message: "Price unavailable" });
-    }
-
-    const totalCost = price * quantity;
-    if (user.balance < totalCost) {
-      return res.status(400).json({ message: "Insufficient balance" });
-    }
-
-    const companyName = profile.name || symbol;
-
-    let holding = await Portfolio.findOne({ userId: user._id, symbol });
-    if (!holding) {
-      holding = await Portfolio.create({
-        userId: user._id,
-        symbol,
-        companyName,
-        quantity,
-        avgBuyPrice: price,
-        totalInvested: totalCost
-      });
-    } else {
-      const newQty = holding.quantity + quantity;
-      const newTotal = holding.totalInvested + totalCost;
-      holding.quantity = newQty;
-      holding.totalInvested = newTotal;
-      holding.avgBuyPrice = newTotal / newQty;
-      holding.companyName = companyName;
-      await holding.save();
-    }
-
-    user.balance -= totalCost;
-    await user.save();
-
-    await Transaction.create({
-      userId: user._id,
-      type: "BUY",
+    const result = await placeOrder({
+      userId: req.user.id,
       symbol,
-      companyName,
-      quantity,
-      price,
-      total: totalCost
+      quantity: Number(quantity),
+      side: "BUY",
+      orderType: "MARKET"
     });
 
-    return res.json({ balance: user.balance, holding });
+    if (!result.execution) {
+      return res.status(400).json({ message: result.order?.rejectionReason || "Order failed" });
+    }
+
+    return res.json({
+      balance: result.execution.balance,
+      holding: result.execution.holding,
+      order: result.order
+    });
   } catch (err) {
     return next(err);
   }
@@ -74,47 +36,19 @@ const sell = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid quantity" });
     }
 
-    const [quote, profile, user, holding] = await Promise.all([
-      getQuote(symbol),
-      getProfile(symbol),
-      User.findById(req.user.id),
-      Portfolio.findOne({ userId: req.user.id, symbol })
-    ]);
-
-    if (!holding || holding.quantity < quantity) {
-      return res.status(400).json({ message: "Not enough shares" });
-    }
-
-    const price = quote.c;
-    if (!price) {
-      return res.status(400).json({ message: "Price unavailable" });
-    }
-
-    const totalReturn = price * quantity;
-    const investedReduction = holding.avgBuyPrice * quantity;
-
-    holding.quantity -= quantity;
-    holding.totalInvested = Math.max(0, holding.totalInvested - investedReduction);
-    if (holding.quantity === 0) {
-      await holding.deleteOne();
-    } else {
-      await holding.save();
-    }
-
-    user.balance += totalReturn;
-    await user.save();
-
-    await Transaction.create({
-      userId: user._id,
-      type: "SELL",
+    const result = await placeOrder({
+      userId: req.user.id,
       symbol,
-      companyName: profile.name || symbol,
-      quantity,
-      price,
-      total: totalReturn
+      quantity: Number(quantity),
+      side: "SELL",
+      orderType: "MARKET"
     });
 
-    return res.json({ balance: user.balance });
+    if (!result.execution) {
+      return res.status(400).json({ message: result.order?.rejectionReason || "Order failed" });
+    }
+
+    return res.json({ balance: result.execution.balance, order: result.order });
   } catch (err) {
     return next(err);
   }

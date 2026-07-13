@@ -11,7 +11,16 @@ const collectSymbols = async () => {
   const lists = await Watchlist.find().lean();
   const symbols = new Set();
   lists.forEach((list) => {
-    list.symbols.forEach((symbol) => symbols.add(symbol));
+    if (Array.isArray(list.symbols)) {
+      list.symbols.forEach((symbol) => symbols.add(symbol));
+    }
+    if (Array.isArray(list.lists)) {
+      list.lists.forEach((watchlistItem) => {
+        if (Array.isArray(watchlistItem.symbols)) {
+          watchlistItem.symbols.forEach((symbol) => symbols.add(symbol));
+        }
+      });
+    }
   });
   return Array.from(symbols);
 };

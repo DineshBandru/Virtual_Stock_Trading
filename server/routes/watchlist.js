@@ -1,6 +1,10 @@
 const express = require("express");
 const {
   getWatchlist,
+  createWatchlist,
+  renameWatchlist,
+  deleteWatchlist,
+  setActiveWatchlist,
   addToWatchlist,
   removeFromWatchlist
 } = require("../controllers/watchlistController");
@@ -11,6 +15,10 @@ const { runValidation } = require('../middleware/validate');
 const router = express.Router();
 
 router.get("/", requireAuth, getWatchlist);
+router.post("/lists", requireAuth, createWatchlist);
+router.patch("/lists/:listId", requireAuth, renameWatchlist);
+router.delete("/lists/:listId", requireAuth, deleteWatchlist);
+router.patch("/active/:listId", requireAuth, setActiveWatchlist);
 router.post(
   "/add",
   requireAuth,
