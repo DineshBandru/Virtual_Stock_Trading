@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "concurrently \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
-    "build": "npm --prefix client run build",
-    "start": "npm --prefix server run start"
+    "dev": "concurrently \"npm --prefix backend run dev\" \"npm --prefix apps/website run dev\" \"npm --prefix apps/admin run dev\"",
+    "build": "npm --prefix apps/website run build",
+    "start": "npm --prefix backend run start"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
