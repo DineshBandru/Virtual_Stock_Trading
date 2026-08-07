@@ -1,9 +1,9 @@
 import useToast from "../hooks/useToast";
 
 const toneStyles = {
-  success: "border-cyan/60 text-cyan",
-  error: "border-red-400/60 text-red-300",
-  info: "border-borderGlow/60 text-slate-200"
+  success: "border-emerald-500/40 text-emerald-300",
+  error: "border-red-500/50 text-red-300",
+  info: "border-borderGlow text-slate-200"
 };
 
 const ToastContainer = () => {
@@ -12,11 +12,11 @@ const ToastContainer = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed right-6 top-6 z-50 flex w-[280px] flex-col gap-3">
+    <div className="fixed left-4 right-4 top-20 z-50 flex flex-col gap-3 sm:left-auto sm:w-[280px] lg:right-6 lg:top-6">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`rounded-2xl border bg-panel/90 px-4 py-3 text-xs shadow-glow ${
+          className={`rounded-lg border bg-panel px-4 py-3 text-xs shadow-none ${
             toneStyles[toast.tone] || toneStyles.info
           }`}
         >
@@ -25,7 +25,7 @@ const ToastContainer = () => {
             <button
               type="button"
               onClick={() => remove(toast.id)}
-              className="text-[10px] uppercase tracking-[0.3em] text-slate-400"
+              className="text-xs font-medium text-slate-400"
             >
               Close
             </button>

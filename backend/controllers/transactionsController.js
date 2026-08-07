@@ -25,15 +25,17 @@ const exportCsv = async (req, res, next) => {
       .sort({ timestamp: -1 })
       .lean();
 
-    const header = "type,symbol,company,quantity,price,total,timestamp";
+    const header = "orderId,type,symbol,company,quantity,price,total,realizedPnL,timestamp";
     const rows = items.map((item) =>
       [
+        item.orderId || "",
         item.type,
         item.symbol,
         item.companyName,
         item.quantity,
         item.price,
         item.total,
+        item.realizedPnL || 0,
         item.timestamp.toISOString()
       ].join(",")
     );

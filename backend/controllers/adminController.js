@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Competition = require("../models/Competition");
+const Order = require("../models/Order");
+const { syncNseEquityInstruments } = require("../services/instrumentService");
 
 const getUsers = async (req, res, next) => {
   try {
@@ -23,18 +25,72 @@ const getTransactions = async (req, res, next) => {
   }
 };
 
+const getOrders = async (req, res, next) => {
+  try {
+    const requestedLimit = Number(req.query.limit);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 500)
+      : 500;
+
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate("userId", "name email")
+      .lean();
+
+    return res.json(
+      orders.map((order) => ({
+        _id: order._id,
+        id: order._id,
+        user: order.userId
+          ? {
+              name: order.userId.name,
+              email: order.userId.email
+            }
+          : null,
+        userName: order.userId?.name || "",
+        userEmail: order.userId?.email || "",
+        symbol: order.symbol,
+        companyName: order.companyName,
+        orderType: order.orderType,
+        side: order.side,
+        quantity: order.quantity,
+        price: order.executionPrice ?? order.limitPrice ?? order.triggerPrice ?? null,
+        triggerPrice: order.triggerPrice,
+        limitPrice: order.limitPrice,
+        executionPrice: order.executionPrice,
+        status: order.status,
+        rejectionReason: order.rejectionReason || "",
+        cancellationReason: order.cancellationReason || "",
+        submittedAt: order.submittedAt,
+        stopTriggeredAt: order.stopTriggeredAt,
+        executedAt: order.executedAt,
+        cancelledAt: order.cancelledAt,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      }))
+    );
+  } catch (err) {
+    return next(err);
+  }
+};
+
 const createCompetition = async (req, res, next) => {
   try {
-    const { name, startDate, endDate, startingBalance } = req.body;
+    const { name, description = "", startDate, endDate, startingBalance, status = "upcoming" } = req.body;
     if (!name || !startDate || !endDate || !startingBalance) {
       return res.status(400).json({ message: "Missing fields" });
     }
+    if (new Date(endDate) <= new Date(startDate)) {
+      return res.status(400).json({ message: "End date must be after start date" });
+    }
     const competition = await Competition.create({
       name,
+      description,
       startDate,
       endDate,
       startingBalance,
-      status: "upcoming"
+      status
     });
     return res.status(201).json(competition);
   } catch (err) {
@@ -42,25 +98,116 @@ const createCompetition = async (req, res, next) => {
   }
 };
 
+const getCompetitions = async (req, res, next) => {
+  try {
+    const competitions = await Competition.find()
+      .sort({ startDate: -1 })
+      .select("name description startDate endDate startingBalance status archived participants createdAt")
+      .lean();
+
+    return res.json(
+      competitions.map((competition) => ({
+        _id: competition._id,
+        name: competition.name,
+        description: competition.description,
+        startDate: competition.startDate,
+        endDate: competition.endDate,
+        startingBalance: competition.startingBalance,
+        status: competition.status,
+        archived: Boolean(competition.archived),
+        participantCount: competition.participants?.length || 0,
+        createdAt: competition.createdAt
+      }))
+    );
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const archiveCompetition = async (req, res, next) => {
+  try {
+    if (!require("mongoose").Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid competition id" });
+    }
+
+    const competition = await Competition.findByIdAndUpdate(
+      req.params.id,
+      { archived: true },
+      { new: true }
+    );
+
+    if (!competition) {
+      return res.status(404).json({ message: "Competition not found" });
+    }
+
+    return res.json({ message: "Competition archived" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 const getStats = async (req, res, next) => {
   try {
-    const [users, transactions] = await Promise.all([
+    const [users, transactions, orders] = await Promise.all([
       User.countDocuments(),
-      Transaction.countDocuments()
+      Transaction.countDocuments(),
+      Order.countDocuments()
+    ]);
+    const [volumeAgg, orderStatusAgg, transactionTypeAgg] = await Promise.all([
+      Transaction.aggregate([
+        { $group: { _id: null, tradingVolume: { $sum: "$total" } } }
+      ]),
+      Order.aggregate([
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]),
+      Transaction.aggregate([
+        { $group: { _id: "$type", count: { $sum: 1 } } }
+      ])
     ]);
     const totalBalanceAgg = await User.aggregate([
       { $group: { _id: null, total: { $sum: "$balance" } } }
     ]);
     const totalBalance = totalBalanceAgg[0] ? totalBalanceAgg[0].total : 0;
+    const orderStatuses = orderStatusAgg.reduce((acc, item) => {
+      acc[item._id || "Unknown"] = item.count;
+      return acc;
+    }, {});
+    const transactionTypes = transactionTypeAgg.reduce((acc, item) => {
+      acc[item._id || "Unknown"] = item.count;
+      return acc;
+    }, {});
 
     return res.json({
       totalUsers: users,
       totalTransactions: transactions,
-      totalVirtualMoney: totalBalance
+      totalOrders: orders,
+      totalVirtualMoney: totalBalance,
+      tradingVolume: volumeAgg[0]?.tradingVolume || 0,
+      buyCount: transactionTypes.BUY || 0,
+      sellCount: transactionTypes.SELL || 0,
+      orderStatuses
     });
   } catch (err) {
     return next(err);
   }
 };
 
-module.exports = { getUsers, getTransactions, createCompetition, getStats };
+const syncInstruments = async (req, res, next) => {
+  try {
+    const result = await syncNseEquityInstruments();
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+module.exports = {
+  getUsers,
+  getTransactions,
+  getOrders,
+  createCompetition,
+  getCompetitions,
+  archiveCompetition,
+  getStats,
+  syncInstruments
+};

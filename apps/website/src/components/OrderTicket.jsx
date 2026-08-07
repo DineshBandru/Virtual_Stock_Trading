@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import GlassPanel from "./GlassPanel";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
+import useAuth from "../hooks/useAuth";
 import useToast from "../hooks/useToast";
 
 const orderTypes = [
@@ -19,6 +20,7 @@ const formatCurrency = (value) =>
 
 const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
   const { push } = useToast();
+  const { user, updateUser, refresh: refreshUser } = useAuth();
   const [side, setSide] = useState("BUY");
   const [orderType, setOrderType] = useState("MARKET");
   const [quantity, setQuantity] = useState("");
@@ -26,17 +28,25 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
   const [limitPrice, setLimitPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
 
-  const lastPrice = Number(quote?.c || 0);
+  const lastPrice = Number(quote?.c);
+  const hasValidPrice = Number.isFinite(lastPrice) && lastPrice > 0;
+  const availableCash = Number(user?.balance);
   const needsTrigger = orderType === "STOP_LOSS" || orderType === "STOP_LIMIT";
   const needsLimit = orderType === "LIMIT" || orderType === "STOP_LIMIT";
+  const estimatedPrice = needsLimit && Number.isFinite(Number(limitPrice)) && Number(limitPrice) > 0
+    ? Number(limitPrice)
+    : hasValidPrice
+      ? lastPrice
+      : null;
   const estimatedNotional = useMemo(() => {
     const qty = Number(quantity);
-    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(lastPrice)) {
+    if (!Number.isInteger(qty) || qty <= 0 || !Number.isFinite(estimatedPrice)) {
       return 0;
     }
-    return qty * lastPrice;
-  }, [quantity, lastPrice]);
+    return qty * estimatedPrice;
+  }, [quantity, estimatedPrice]);
 
   const resetPriceFields = (nextOrderType) => {
     const nextNeedsTrigger = nextOrderType === "STOP_LOSS" || nextOrderType === "STOP_LIMIT";
@@ -56,8 +66,20 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
       setError("Symbol is required");
       return;
     }
+    if (!String(symbol).toUpperCase().endsWith(".NS")) {
+      setError("Select a valid NSE symbol before placing an order");
+      return;
+    }
     if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
-      setError("Enter a valid quantity");
+      setError("Quantity must be a positive whole number");
+      return;
+    }
+    if (!hasValidPrice) {
+      setError("Market price is unavailable. Try again after the quote loads.");
+      return;
+    }
+    if (side === "BUY" && Number.isFinite(availableCash) && estimatedNotional > availableCash) {
+      setError("Insufficient virtual funds for this buy order");
       return;
     }
     if (needsTrigger && (!Number.isFinite(Number(triggerPrice)) || Number(triggerPrice) <= 0)) {
@@ -68,10 +90,19 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
       setError("Limit price is required for limit orders");
       return;
     }
+    if (orderType === "STOP_LIMIT" && side === "BUY" && Number(limitPrice) < Number(triggerPrice)) {
+      setError("Buy stop-limit price must be greater than or equal to trigger price");
+      return;
+    }
+    if (orderType === "STOP_LIMIT" && side === "SELL" && Number(limitPrice) > Number(triggerPrice)) {
+      setError("Sell stop-limit price must be less than or equal to trigger price");
+      return;
+    }
 
     try {
       setSubmitting(true);
       setError("");
+      setResult(null);
       const response = await api.post("/api/orders", {
         symbol: symbol.toUpperCase(),
         quantity: parsedQuantity,
@@ -83,11 +114,34 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
 
       const placedOrder = response.data?.order;
       const execution = response.data?.execution;
-      if (placedOrder?.status === "Executed" && execution?.order) {
-        push(`Order executed at ${formatCurrency(execution.order.executionPrice)}`, "success");
-      } else if (placedOrder?.status === "Executed") {
-        push("Order executed", "success");
+      const executionPrice = Number(placedOrder?.executionPrice ?? execution?.order?.executionPrice);
+      const totalAmount = Number.isFinite(executionPrice) ? executionPrice * parsedQuantity : estimatedNotional;
+
+      if (placedOrder?.status === "Rejected") {
+        const reason = placedOrder.rejectionReason || "Order was rejected";
+        setError(reason);
+        setResult({ status: "Rejected", message: reason, order: placedOrder });
+        push(reason, "error");
+        return;
+      }
+
+      if (placedOrder?.status === "Executed") {
+        const nextBalance = Number(execution?.balance);
+        if (Number.isFinite(nextBalance)) {
+          updateUser({ balance: nextBalance });
+        }
+        refreshUser?.();
+        setResult({
+          status: "Executed",
+          symbol: placedOrder.symbol,
+          quantity: parsedQuantity,
+          executionPrice,
+          totalAmount,
+          balance: nextBalance
+        });
+        push(`Order placed successfully: ${placedOrder.symbol} x ${parsedQuantity}`, "success");
       } else {
+        setResult({ status: placedOrder?.status || "Pending", order: placedOrder });
         push("Order queued for execution", "info");
       }
 
@@ -107,33 +161,36 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
   };
 
   return (
-    <GlassPanel className="space-y-6">
+    <GlassPanel className="w-full min-w-0 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Order Ticket</p>
+          <p className="text-xs font-medium uppercase text-[#A1A1B5]">Order Ticket</p>
           <h3 className="mt-2 text-lg font-semibold text-white">Place and manage orders</h3>
         </div>
         <Link
           to="/orders"
-          className="rounded-full border border-borderGlow/60 px-3 py-1 text-xs text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+          className="rounded-2xl border border-white/10 px-3 py-1 text-xs text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
         >
           Order History
         </Link>
       </div>
 
-      <div className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
-        <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">Symbol</p>
-        <p className="mt-2 text-2xl font-semibold text-white">{symbol || "—"}</p>
-        <p className="mt-2 text-xs text-slate-400">
-          Last traded price: <span className="text-white">{loading ? "Loading..." : formatCurrency(lastPrice)}</span>
+      <div className="rounded-2xl border border-white/10 bg-[#080910]/70 p-4">
+        <p className="text-xs font-medium uppercase text-[#A1A1B5]">Symbol</p>
+        <p className="mt-2 text-2xl font-semibold text-white">{symbol || "N/A"}</p>
+        <p className="mt-2 text-xs text-[#A1A1B5]">
+          Last traded price: <span className="text-white">{loading ? "Loading..." : hasValidPrice ? formatCurrency(lastPrice) : "Unavailable"}</span>
+        </p>
+        <p className="mt-1 text-xs text-[#A1A1B5]">
+          Available virtual cash: <span className="text-white">{formatCurrency(availableCash)}</span>
         </p>
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { value: "BUY", label: "Buy", tone: "text-cyan-300 border-cyan-400/40 bg-cyan-400/10" },
-            { value: "SELL", label: "Sell", tone: "text-red-300 border-red-400/40 bg-red-400/10" }
+            { value: "BUY", label: "Buy", tone: "text-emerald-300 border-emerald-500/30 bg-emerald-500/10" },
+            { value: "SELL", label: "Sell", tone: "text-red-300 border-red-500/30 bg-red-500/10" }
           ].map((item) => (
             <button
               key={item.value}
@@ -142,7 +199,7 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
               className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                 side === item.value
                   ? item.tone
-                  : "border-borderGlow/60 bg-base/60 text-slate-300 hover:border-borderGlow/80"
+                  : "border-white/10 bg-[#080910]/60 text-[#C2C4D2] hover:border-white/10"
               }`}
             >
               {item.label}
@@ -150,7 +207,7 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
           ))}
         </div>
 
-        <label className="flex flex-col gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+        <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
           Order Type
           <select
             value={orderType}
@@ -159,7 +216,7 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
               setOrderType(nextType);
               resetPriceFields(nextType);
             }}
-            className="rounded-xl border border-borderGlow/70 bg-base/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+            className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
           >
             {orderTypes.map((item) => (
               <option key={item.value} value={item.value}>
@@ -169,20 +226,21 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
           </select>
         </label>
 
-        <label className="flex flex-col gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+        <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
           Quantity
           <input
             type="number"
             min="1"
+            step="1"
             value={quantity}
             onChange={(event) => setQuantity(event.target.value)}
-            className="rounded-xl border border-borderGlow/70 bg-base/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+            className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
             placeholder="Enter shares"
           />
         </label>
 
         {needsTrigger ? (
-          <label className="flex flex-col gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+          <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
             Trigger Price
             <input
               type="number"
@@ -190,14 +248,14 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
               step="0.05"
               value={triggerPrice}
               onChange={(event) => setTriggerPrice(event.target.value)}
-              className="rounded-xl border border-borderGlow/70 bg-base/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+              className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
               placeholder="Price that activates the stop order"
             />
           </label>
         ) : null}
 
         {needsLimit ? (
-          <label className="flex flex-col gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+          <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
             Limit Price
             <input
               type="number"
@@ -205,18 +263,18 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
               step="0.05"
               value={limitPrice}
               onChange={(event) => setLimitPrice(event.target.value)}
-              className="rounded-xl border border-borderGlow/70 bg-base/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+              className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
               placeholder="Execution limit"
             />
           </label>
         ) : null}
 
-        <div className="rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-4 text-sm text-slate-300">
+        <div className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-4 text-sm text-[#C2C4D2]">
           <div className="flex items-center justify-between gap-3">
-            <span>Estimated Notional</span>
+            <span>Estimated Order Value</span>
             <span className="font-mono text-white">{formatCurrency(estimatedNotional)}</span>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-[#6F7487]">
             {orderType === "MARKET"
               ? "Market orders execute at the current quote if sufficient balance or holdings are available."
               : orderType === "LIMIT"
@@ -230,20 +288,45 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="submit"
-            disabled={submitting || loading}
-            className="flex-1 rounded-xl border border-cyan-400/80 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={submitting || loading || !hasValidPrice}
+            className="flex-1 rounded-2xl border border-cyan/60 bg-cyan/10 px-4 py-3 text-sm font-semibold text-cyan transition hover:bg-cyan/20 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Submitting..." : "Place Order"}
           </button>
           <Link
             to="/orders"
-            className="flex-1 rounded-xl border border-borderGlow/60 px-4 py-3 text-center text-sm font-semibold text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+            className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-center text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
           >
             Track Orders
           </Link>
         </div>
 
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {result?.status === "Executed" ? (
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
+            <p className="font-semibold">Order placed successfully</p>
+            <div className="mt-3 space-y-1 text-xs">
+              <p>Symbol: {result.symbol}</p>
+              <p>Quantity: {result.quantity}</p>
+              <p>Execution price: {formatCurrency(result.executionPrice)}</p>
+              <p>Total amount: {formatCurrency(result.totalAmount)}</p>
+              <p>Remaining virtual cash: {formatCurrency(result.balance)}</p>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link to="/portfolio" className="rounded-xl border border-emerald-300/40 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/20">
+                Portfolio
+              </Link>
+              <Link to="/orders" className="rounded-xl border border-emerald-300/40 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/20">
+                Orders
+              </Link>
+            </div>
+          </div>
+        ) : result?.status === "Rejected" ? (
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-4 text-sm text-red-100">
+            <p className="font-semibold">Order rejected</p>
+            <p className="mt-2 text-xs">{result.message}</p>
+          </div>
+        ) : null}
       </form>
     </GlassPanel>
   );

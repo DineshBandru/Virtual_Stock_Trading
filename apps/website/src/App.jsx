@@ -8,10 +8,14 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { PracticeModeProvider } from "./context/PracticeModeContext";
 import ToastContainer from "./components/ToastContainer";
 import OnboardingTour from "./components/OnboardingTour";
+import ScrollRestoration from "./components/ScrollRestoration";
+import useTradingNotifications from "./hooks/useTradingNotifications";
+import useAuth from "./hooks/useAuth";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ResetPassword from "./pages/ResetPassword";
 import StockDetail from "./pages/StockDetail";
 import Portfolio from "./pages/Portfolio";
 import Positions from "./pages/Positions";
@@ -22,7 +26,13 @@ import Alerts from "./pages/Alerts";
 import Leaderboard from "./pages/Leaderboard";
 import Competitions from "./pages/Competitions";
 import Analytics from "./pages/Analytics";
-import AdminRedirect from "./pages/AdminRedirect";
+import Settings from "./pages/Settings";
+
+const TradingNotificationBridge = () => {
+  const { user } = useAuth();
+  useTradingNotifications(Boolean(user));
+  return null;
+};
 
 const App = () => {
   return (
@@ -30,7 +40,9 @@ const App = () => {
       <PracticeModeProvider>
         <AuthProvider>
           <ToastProvider>
-            <div className="app-scanlines min-h-screen bg-white text-base dark:bg-base dark:text-white transition-colors">
+            <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors">
+              <TradingNotificationBridge />
+              <ScrollRestoration />
               <Routes>
           <Route path="/" element={<Home />} />
           <Route
@@ -47,6 +59,24 @@ const App = () => {
               <AuthLayout>
                 <Register />
               </AuthLayout>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <AuthLayout>
+                <ResetPassword />
+              </AuthLayout>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <Dashboard />
+                </AppShell>
+              </ProtectedRoute>
             }
           />
           <Route
@@ -150,15 +180,20 @@ const App = () => {
             }
           />
           <Route
-            path="/admin"
+            path="/settings"
+            element={<Navigate to="/settings/account" replace />}
+          />
+          <Route
+            path="/settings/:section"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute>
                 <AppShell>
-                  <AdminRedirect />
+                  <Settings />
                 </AppShell>
               </ProtectedRoute>
             }
           />
+          <Route path="/profile" element={<Navigate to="/settings/account" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <ToastContainer />

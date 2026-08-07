@@ -18,14 +18,14 @@ const ConfirmModal = ({
         <div className="mt-6 flex gap-3">
           <button
             type="button"
-            className="flex-1 rounded-xl border border-borderGlow/60 px-4 py-2 text-sm text-slate-300"
+            className="flex-1 rounded-2xl border border-white/10 px-4 py-2 text-sm text-[#C2C4D2] transition hover:border-white/20 hover:bg-white/[0.04]"
             onClick={onCancel}
           >
             Cancel
           </button>
           <button
             type="button"
-            className="flex-1 rounded-xl border border-cyan/80 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan shadow-glow"
+            className="flex-1 rounded-2xl border border-cyan/50 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan"
             onClick={onConfirm}
           >
             {confirmLabel}

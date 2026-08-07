@@ -2,25 +2,25 @@
   "name": "virtual-stock-platform-admin",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "node ../website/node_modules/vite/bin/vite.js",
-    "build": "node ../website/node_modules/vite/bin/vite.js build",
-    "preview": "node ../website/node_modules/vite/bin/vite.js preview"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.7.4",
-    "framer-motion": "^11.3.19",
-    "lucide-react": "^1.17.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.1",
-    "virtual-stock-platform": "file:../.."
+    "axios": "1.16.1",
+    "framer-motion": "11.18.2",
+    "lucide-react": "1.17.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.30.3"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.41",
-    "tailwindcss": "^3.4.10",
-    "vite": "^5.4.2"
+    "@vitejs/plugin-react": "4.7.0",
+    "autoprefixer": "10.5.0",
+    "postcss": "8.5.15",
+    "tailwindcss": "3.4.19",
+    "vite": "5.4.21"
   }
 }

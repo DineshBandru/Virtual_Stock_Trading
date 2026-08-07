@@ -2,7 +2,7 @@ import { Navigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { Skeleton } from "./Skeleton";
 
-const ProtectedRoute = ({ children, requireAdmin = false }) => {
+const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -19,10 +19,6 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
-  }
-
-  if (requireAdmin && user.role !== "admin") {
-    return <Navigate to="/" replace />;
   }
 
   return children;

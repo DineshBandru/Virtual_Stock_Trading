@@ -7,10 +7,26 @@ services:
     envVars:
       - key: PORT
         value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
       - key: MONGO_URI
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: ADMIN_URL
+        sync: false
+      - key: COOKIE_SAME_SITE
+        sync: false
+      - key: NSE_HOLIDAYS
+        sync: false
       - key: FINNHUB_API_KEY
+        sync: false
+      - key: EMAIL_API_KEY
+        sync: false
+      - key: EMAIL_FROM
         sync: false
     autoDeploy: false

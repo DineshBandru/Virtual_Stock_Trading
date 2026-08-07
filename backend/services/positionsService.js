@@ -1,6 +1,9 @@
 const Portfolio = require("../models/Portfolio");
 const Transaction = require("../models/Transaction");
 const { getQuote } = require("../utils/market");
+const { normalizeLiveQuote } = require("./liveMarketService");
+
+let quoteProvider = getQuote;
 
 const normalizeSymbol = (symbol) => String(symbol || "").trim().toUpperCase();
 
@@ -54,7 +57,10 @@ const buildTransactionSummaryMap = (transactions) => {
 };
 
 const shapePosition = ({ symbol, companyName, txSummary, holding, quote }) => {
-  const currentPrice = Number(quote?.c) || 0;
+  const liveQuote = normalizeLiveQuote(symbol, quote);
+  const quotePrice = Number(liveQuote.price);
+  const hasPrice = Number.isFinite(quotePrice) && quotePrice > 0;
+  const currentPrice = hasPrice ? quotePrice : null;
   const buyQty = txSummary?.buyQty || 0;
   const sellQty = txSummary?.sellQty || 0;
   const txNetQty = txSummary?.quantity || 0;
@@ -67,10 +73,10 @@ const shapePosition = ({ symbol, companyName, txSummary, holding, quote }) => {
       ? round((txSummary?.buyValue || 0) / buyQty)
       : 0;
   const averageSellPrice = sellQty > 0 ? round((txSummary?.sellValue || 0) / sellQty) : 0;
-  const currentValue = isOpen ? round(currentPrice * netQuantity) : 0;
-  const unrealizedPnL = isOpen ? round(currentValue - investedValue) : 0;
+  const currentValue = isOpen && hasPrice ? round(currentPrice * netQuantity) : isOpen ? null : 0;
+  const unrealizedPnL = isOpen && hasPrice ? round(currentValue - investedValue) : isOpen ? null : 0;
   const realizedPnL = round(txSummary?.realizedPnL || 0);
-  const totalPnL = round(realizedPnL + unrealizedPnL);
+  const totalPnL = round(realizedPnL + (Number(unrealizedPnL) || 0));
   const pnlBase = buyQty > 0 ? round(txSummary?.buyValue || investedValue || 0) : investedValue || 0;
   const pnlPct = pnlBase > 0 ? round((totalPnL / pnlBase) * 100) : 0;
   const positionType = isOpen
@@ -96,7 +102,15 @@ const shapePosition = ({ symbol, companyName, txSummary, holding, quote }) => {
     realizedPnL,
     totalPnL,
     pnlPct,
-    positionType
+    positionType,
+    valuationAvailable: !isOpen || hasPrice,
+    quoteStale: Boolean(liveQuote.stale),
+    quoteStatus: liveQuote.status,
+    priceUpdatedAt: liveQuote.fetchedAt,
+    priceTimestamp: liveQuote.timestamp,
+    previousClose: liveQuote.previousClose,
+    change: liveQuote.change,
+    changePercent: liveQuote.changePercent
   };
 };
 
@@ -116,7 +130,7 @@ const buildPositions = async (userId) => {
   ]);
 
   const quoteSymbols = Array.from(symbolSet);
-  const quotes = await Promise.all(quoteSymbols.map((symbol) => getQuote(symbol).catch(() => null)));
+  const quotes = await Promise.all(quoteSymbols.map((symbol) => quoteProvider(symbol).catch(() => null)));
   const quoteMap = new Map(quoteSymbols.map((symbol, index) => [symbol, quotes[index]]));
 
   const positions = Array.from(symbolSet).map((symbol) => {
@@ -182,4 +196,16 @@ const buildPositions = async (userId) => {
   };
 };
 
-module.exports = { buildPositions };
+const __setPositionsServiceTestHooks = (hooks = {}) => {
+  if (hooks.getQuote) quoteProvider = hooks.getQuote;
+};
+
+const __resetPositionsServiceTestHooks = () => {
+  quoteProvider = getQuote;
+};
+
+module.exports = {
+  buildPositions,
+  __setPositionsServiceTestHooks,
+  __resetPositionsServiceTestHooks
+};

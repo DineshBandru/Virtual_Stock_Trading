@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleAlert, RefreshCcw } from "lucide-react";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
 import PnlAreaChart from "../components/charts/PnlAreaChart";
 import SectorPieChart from "../components/charts/SectorPieChart";
+import useLivePrices from "../hooks/useLivePrices";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
+import socket from "../utils/socket";
 
 const STARTING_CAPITAL = 1000000;
 
@@ -105,16 +107,16 @@ const buildPerformanceSeries = (transactions) => {
 
 const StatCard = ({ label, value, detail, tone = "slate" }) => {
   const toneClass = {
-    slate: "text-slate-400",
-    cyan: "text-cyan-300",
-    green: "text-emerald-300",
-    red: "text-red-300",
-    amber: "text-amber-200"
+    slate: "text-[#A1A1B5]",
+    cyan: "text-cyan",
+    green: "text-emerald-400",
+    red: "text-red-400",
+    amber: "text-red-400"
   }[tone];
 
   return (
     <GlassPanel className="min-h-[126px]">
-      <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">{label}</p>
+      <p className="text-[11px] uppercase text-[#A1A1B5]">{label}</p>
       <p className="mt-3 text-2xl font-semibold text-white md:text-3xl">{value}</p>
       {detail ? <p className={`mt-2 text-xs ${toneClass}`}>{detail}</p> : null}
     </GlassPanel>
@@ -136,10 +138,18 @@ const Analytics = () => {
   const [portfolioAnalytics, setPortfolioAnalytics] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [positions, setPositions] = useState({ openPositions: [], closedPositions: [], summary: {} });
+  const subscribedSymbols = useMemo(
+    () => [
+      ...holdings.map((holding) => holding.symbol),
+      ...positions.openPositions.map((position) => position.symbol)
+    ].filter(Boolean),
+    [holdings, positions.openPositions]
+  );
+  const prices = useLivePrices(subscribedSymbols);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async ({ showLoading = true } = {}) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       setError("");
       const [portfolioRes, analyticsRes, transactionsRes, positionsRes] = await Promise.all([
         api.get("/api/portfolio"),
@@ -159,23 +169,100 @@ const Analytics = () => {
     } catch (err) {
       setError(getApiErrorMessage(err, "Failed to load analytics"));
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadAnalytics();
-  }, []);
+  }, [loadAnalytics]);
+
+  useEffect(() => {
+    const refreshAnalytics = () => loadAnalytics({ showLoading: false });
+
+    socket.on("analytics-update", refreshAnalytics);
+    socket.on("portfolio-update", refreshAnalytics);
+    socket.on("position-update", refreshAnalytics);
+    socket.on("transaction-update", refreshAnalytics);
+    socket.on("order-update", refreshAnalytics);
+    socket.on("connect", refreshAnalytics);
+
+    return () => {
+      socket.off("analytics-update", refreshAnalytics);
+      socket.off("portfolio-update", refreshAnalytics);
+      socket.off("position-update", refreshAnalytics);
+      socket.off("transaction-update", refreshAnalytics);
+      socket.off("order-update", refreshAnalytics);
+      socket.off("connect", refreshAnalytics);
+    };
+  }, [loadAnalytics]);
+
+  const liveHoldings = useMemo(() => {
+    return holdings.map((holding) => {
+      const quote = prices[holding.symbol];
+      const livePrice = Number(quote?.price ?? quote?.c);
+      const fallbackPrice = Number(holding.currentPrice);
+      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
+        ? true
+        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
+      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
+      const quantity = Number(holding.quantity) || 0;
+      const investedValue = Number(holding.avgBuyPrice || 0) * quantity;
+      const currentValue = hasPrice ? currentPrice * quantity : null;
+
+      return {
+        ...holding,
+        currentPrice,
+        currentValue,
+        totalInvested: investedValue,
+        investedValue,
+        pnl: hasPrice ? currentValue - investedValue : null,
+        pnlPct: hasPrice && investedValue > 0 ? ((currentValue - investedValue) / investedValue) * 100 : null,
+        valuationAvailable: hasPrice
+      };
+    });
+  }, [holdings, prices]);
+
+  const livePositions = useMemo(() => {
+    const openPositions = positions.openPositions.map((position) => {
+      const quote = prices[position.symbol];
+      const livePrice = Number(quote?.price ?? quote?.c);
+      const fallbackPrice = Number(position.currentPrice);
+      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
+        ? true
+        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
+      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
+      const currentValue = hasPrice ? currentPrice * Number(position.netQty || 0) : null;
+      const investedValue = Number(position.investedValue) || 0;
+      const unrealizedPnL = hasPrice ? currentValue - investedValue : null;
+      return {
+        ...position,
+        currentPrice,
+        currentValue,
+        unrealizedPnL,
+        totalPnL: (Number(position.realizedPnL) || 0) + (Number(unrealizedPnL) || 0),
+        valuationAvailable: hasPrice
+      };
+    });
+    return {
+      openPositions,
+      closedPositions: positions.closedPositions,
+      summary: {
+        ...positions.summary,
+        totalOpenPnL: openPositions.reduce((sum, position) => sum + (Number(position.unrealizedPnL) || 0), 0)
+      }
+    };
+  }, [positions, prices]);
 
   const derived = useMemo(() => {
     const buyCount = transactions.filter((transaction) => transaction.type === "BUY").length;
     const sellCount = transactions.filter((transaction) => transaction.type === "SELL").length;
-    const realizedPnL = Number(positions.summary?.totalRealizedPnL) || 0;
+    const realizedPnL = Number(livePositions.summary?.totalRealizedPnL) || 0;
     const unrealizedPnL =
-      Number(positions.summary?.totalOpenPnL) ||
-      positions.openPositions.reduce((sum, position) => sum + (Number(position.unrealizedPnL) || 0), 0);
+      Number(livePositions.summary?.totalOpenPnL) ||
+      livePositions.openPositions.reduce((sum, position) => sum + (Number(position.unrealizedPnL) || 0), 0);
 
-    const allPositionRows = [...positions.openPositions, ...positions.closedPositions].map((position) => ({
+    const allPositionRows = [...livePositions.openPositions, ...livePositions.closedPositions].map((position) => ({
       ...position,
       totalPnL: Number(position.totalPnL) || Number(position.realizedPnL) || Number(position.unrealizedPnL) || 0,
       pnlPct: Number(position.pnlPct) || 0
@@ -186,7 +273,7 @@ const Analytics = () => {
     const bestTrade = profitableRows.sort((left, right) => right.totalPnL - left.totalPnL)[0] || null;
     const worstTrade = losingRows.sort((left, right) => left.totalPnL - right.totalPnL)[0] || null;
 
-    const allocationData = holdings
+    const allocationData = liveHoldings
       .filter((holding) => Number(holding.currentValue) > 0)
       .sort((left, right) => Number(right.currentValue) - Number(left.currentValue))
       .map((holding) => ({
@@ -201,7 +288,9 @@ const Analytics = () => {
 
     return {
       totalInvested: Number(portfolioAnalytics?.invested) || 0,
-      currentValue: Number(portfolioAnalytics?.currentValue) || 0,
+      currentValue: liveHoldings.some((holding) => holding.valuationAvailable === false)
+        ? Number(portfolioAnalytics?.currentValue) || 0
+        : liveHoldings.reduce((sum, holding) => sum + (Number(holding.currentValue) || 0), 0),
       realizedPnL,
       unrealizedPnL,
       totalTrades: transactions.length,
@@ -212,7 +301,7 @@ const Analytics = () => {
       performanceData: buildPerformanceSeries(transactions),
       allocationData
     };
-  }, [holdings, portfolioAnalytics, positions, transactions]);
+  }, [liveHoldings, livePositions, portfolioAnalytics, transactions]);
 
   const hasTrades = derived.totalTrades > 0;
 
@@ -242,14 +331,14 @@ const Analytics = () => {
             <div>
               <div className="flex items-center gap-2 text-red-200">
                 <CircleAlert className="h-5 w-5" />
-                <h3 className="text-sm font-semibold uppercase tracking-[0.2em]">Analytics unavailable</h3>
+                <h3 className="text-sm font-semibold uppercase">Analytics unavailable</h3>
               </div>
               <p className="mt-3 text-sm text-red-100/90">{error}</p>
             </div>
             <button
               type="button"
               onClick={loadAnalytics}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-300/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20"
             >
               <RefreshCcw className="h-4 w-4" />
               Retry
@@ -265,10 +354,10 @@ const Analytics = () => {
       <div className="flex flex-col gap-8">
         <PageHeader title="Advanced Analytics" subtitle="Performance insights, win rate, exposure, and trade history." />
         <GlassPanel>
-          <div className="rounded-2xl border border-dashed border-borderGlow/60 bg-base/40 px-6 py-12 text-center">
-            <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">No trading data</p>
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910] px-6 py-12 text-center">
+            <p className="text-xs font-medium text-[#A1A1B5]">No trading data</p>
             <h3 className="mt-4 text-2xl font-semibold text-white">Analytics will appear after your first trade</h3>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#A1A1B5]">
               Once buy or sell transactions exist, this page will calculate invested capital, P/L, trade counts,
               growth, and stock-wise allocation from your real account data.
             </p>
@@ -315,10 +404,10 @@ const Analytics = () => {
         <GlassPanel>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">Portfolio Growth</h3>
-              <p className="mt-2 text-xs text-slate-500">Estimated from transaction history</p>
+              <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">Portfolio Growth</h3>
+              <p className="mt-2 text-xs text-[#6F7487]">Estimated from transaction history</p>
             </div>
-            <span className="text-xs text-slate-400">%</span>
+            <span className="text-xs text-[#A1A1B5]">%</span>
           </div>
           <div className="mt-6">
             <PnlAreaChart data={derived.performanceData} />
@@ -328,10 +417,10 @@ const Analytics = () => {
         <GlassPanel>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">Stock Allocation</h3>
-              <p className="mt-2 text-xs text-slate-500">Current holdings by value</p>
+              <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">Stock Allocation</h3>
+              <p className="mt-2 text-xs text-[#6F7487]">Current holdings by value</p>
             </div>
-            <span className="text-xs text-slate-400">{derived.allocationData.length} stocks</span>
+            <span className="text-xs text-[#A1A1B5]">{derived.allocationData.length} stocks</span>
           </div>
           <div className="mt-6">
             <SectorPieChart data={derived.allocationData} />
@@ -341,60 +430,60 @@ const Analytics = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <GlassPanel>
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Best / Worst</p>
+          <p className="text-xs uppercase text-[#A1A1B5]">Best / Worst</p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">Best profitable trade</p>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <p className="text-xs font-medium text-emerald-400">Best profitable trade</p>
               {derived.bestTrade ? (
                 <>
                   <p className="mt-3 text-lg font-semibold text-white">{derived.bestTrade.symbol}</p>
-                  <p className="mt-1 text-sm text-slate-300">{derived.bestTrade.companyName}</p>
-                  <p className="mt-3 text-xl font-semibold text-emerald-300">{formatCurrency(derived.bestTrade.totalPnL)}</p>
-                  <p className="mt-1 text-xs text-slate-400">{formatPercent(derived.bestTrade.pnlPct)}</p>
+                  <p className="mt-1 text-sm text-[#C2C4D2]">{derived.bestTrade.companyName}</p>
+                  <p className="mt-3 text-xl font-semibold text-emerald-400">{formatCurrency(derived.bestTrade.totalPnL)}</p>
+                  <p className="mt-1 text-xs text-[#A1A1B5]">{formatPercent(derived.bestTrade.pnlPct)}</p>
                 </>
               ) : (
-                <p className="mt-4 text-sm text-slate-400">No profitable position data yet.</p>
+                <p className="mt-4 text-sm text-[#A1A1B5]">No profitable position data yet.</p>
               )}
             </div>
 
-            <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-red-200">Worst losing trade</p>
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+              <p className="text-xs font-medium text-red-400">Worst losing trade</p>
               {derived.worstTrade ? (
                 <>
                   <p className="mt-3 text-lg font-semibold text-white">{derived.worstTrade.symbol}</p>
-                  <p className="mt-1 text-sm text-slate-300">{derived.worstTrade.companyName}</p>
-                  <p className="mt-3 text-xl font-semibold text-red-300">{formatCurrency(derived.worstTrade.totalPnL)}</p>
-                  <p className="mt-1 text-xs text-slate-400">{formatPercent(derived.worstTrade.pnlPct)}</p>
+                  <p className="mt-1 text-sm text-[#C2C4D2]">{derived.worstTrade.companyName}</p>
+                  <p className="mt-3 text-xl font-semibold text-red-400">{formatCurrency(derived.worstTrade.totalPnL)}</p>
+                  <p className="mt-1 text-xs text-[#A1A1B5]">{formatPercent(derived.worstTrade.pnlPct)}</p>
                 </>
               ) : (
-                <p className="mt-4 text-sm text-slate-400">No losing position data yet.</p>
+                <p className="mt-4 text-sm text-[#A1A1B5]">No losing position data yet.</p>
               )}
             </div>
           </div>
         </GlassPanel>
 
         <GlassPanel>
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Allocation List</p>
+          <p className="text-xs uppercase text-[#A1A1B5]">Allocation List</p>
           <div className="mt-5 space-y-3">
             {derived.allocationData.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-borderGlow/60 bg-base/40 px-4 py-8 text-center text-sm text-slate-400">
+              <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910] px-4 py-8 text-center text-sm text-[#A1A1B5]">
                 No active stock allocation. Closed trades remain reflected in history and realized P/L.
               </div>
             ) : (
               derived.allocationData.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-borderGlow/50 bg-base/60 p-4">
+                <div key={item.label} className="rounded-2xl border border-white/10 bg-[#080910] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-mono text-sm font-semibold text-white">{item.label}</p>
-                      <p className="mt-1 text-xs text-slate-400">{item.companyName}</p>
+                      <p className="mt-1 text-xs text-[#A1A1B5]">{item.companyName}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-white">{formatCurrency(item.value)}</p>
-                      <p className="mt-1 text-xs text-cyan-300">{item.percent.toFixed(2)}%</p>
+                      <p className="mt-1 text-xs text-cyan">{item.percent.toFixed(2)}%</p>
                     </div>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
-                    <div className="h-full rounded-full bg-cyan-400" style={{ width: `${Math.min(item.percent, 100)}%` }} />
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#1A1B2B]">
+                    <div className="h-full rounded-full bg-cyan" style={{ width: `${Math.min(item.percent, 100)}%` }} />
                   </div>
                 </div>
               ))

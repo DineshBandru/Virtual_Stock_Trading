@@ -6,13 +6,18 @@ const useAlertsFeed = (userId) => {
 
   useEffect(() => {
     if (!userId) return undefined;
+    if (!socket.connected) {
+      socket.connect();
+    }
     const handler = (payload) => {
-      if (payload.userId === userId) {
+      if (!payload.userId || payload.userId === userId || payload.userId === String(userId)) {
         setTriggered(payload);
       }
     };
+    socket.on("alert-triggered", handler);
     socket.on("alerts:triggered", handler);
     return () => {
+      socket.off("alert-triggered", handler);
       socket.off("alerts:triggered", handler);
     };
   }, [userId]);

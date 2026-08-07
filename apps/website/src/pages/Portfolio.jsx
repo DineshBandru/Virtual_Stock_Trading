@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -32,15 +32,19 @@ import {
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
+import useLivePrices from "../hooks/useLivePrices";
 import useToast from "../hooks/useToast";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
+import socket from "../utils/socket";
 
 const STARTING_CAPITAL = 1000000;
-const chartColors = ["#22D3EE", "#38BDF8", "#A855F7", "#F59E0B", "#F472B6", "#34D399", "#F87171", "#EAB308"];
+const chartColors = ["#38BDF8", "#64748B", "#22C55E", "#EF4444", "#94A3B8", "#2563EB", "#475569", "#0EA5E9"];
 
 const formatCurrency = (value) => {
-  const number = Number(value) || 0;
+  if (value === null || value === undefined || value === "") return "Unavailable";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "Unavailable";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
@@ -59,7 +63,9 @@ const formatCompactCurrency = (value) => {
 };
 
 const formatPercent = (value) => {
-  const number = Number(value) || 0;
+  if (value === null || value === undefined || value === "") return "Unavailable";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "Unavailable";
   return `${number >= 0 ? "+" : ""}${number.toFixed(2)}%`;
 };
 
@@ -173,7 +179,7 @@ const LoadingChartPanel = ({ title }) => (
       <Skeleton className="h-8 w-28" />
     </div>
     <Skeleton className="mt-6 h-[270px] w-full" />
-    <div className="mt-4 flex gap-3 text-xs text-slate-400">
+    <div className="mt-4 flex gap-3 text-xs text-[#A1A1B5]">
       <Skeleton className="h-3 w-24" />
       <Skeleton className="h-3 w-20" />
       <Skeleton className="h-3 w-24" />
@@ -186,10 +192,10 @@ const SectionHeader = ({ icon: Icon, title, subtitle, action }) => (
   <div className="flex flex-wrap items-center justify-between gap-4">
     <div>
       <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-cyan-300" />
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-200">{title}</h3>
+        <Icon className="h-4 w-4 text-cyan" />
+        <h3 className="text-sm font-semibold uppercase text-[#E7E9F3]">{title}</h3>
       </div>
-      <p className="mt-2 text-sm text-slate-400">{subtitle}</p>
+      <p className="mt-2 text-sm text-[#A1A1B5]">{subtitle}</p>
     </div>
     {action}
   </div>
@@ -197,19 +203,19 @@ const SectionHeader = ({ icon: Icon, title, subtitle, action }) => (
 
 const MetricCard = ({ label, value, detail, icon: Icon, tone = "cyan" }) => {
   const tones = {
-    cyan: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
-    amber: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-    red: "border-red-400/30 bg-red-400/10 text-red-200",
-    slate: "border-borderGlow/60 bg-panel/70 text-slate-200"
+    cyan: "border-cyan/30 bg-cyan/10 text-cyan",
+    amber: "border-slate-600 bg-[#1A1B2B] text-[#C2C4D2]",
+    red: "border-red-500/30 bg-red-500/10 text-red-200",
+    slate: "border-white/10 bg-[#121320] text-[#E7E9F3]"
   };
 
   return (
     <GlassPanel className="min-h-[128px]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">{label}</p>
+          <p className="text-[11px] uppercase text-[#A1A1B5]">{label}</p>
           <div className="mt-3 text-2xl font-semibold text-white">{value}</div>
-          <p className={`mt-2 text-xs ${Number(detail?.rawValue) < 0 ? "text-red-300" : "text-slate-400"}`}>
+          <p className={`mt-2 text-xs ${Number(detail?.rawValue) < 0 ? "text-red-400" : "text-[#A1A1B5]"}`}>
             {detail}
           </p>
         </div>
@@ -230,9 +236,12 @@ const Portfolio = () => {
   const [analytics, setAnalytics] = useState(null);
   const [transactions, setTransactions] = useState([]);
 
-  const loadPortfolio = async () => {
+  const holdingSymbols = useMemo(() => holdings.map((holding) => holding.symbol).filter(Boolean), [holdings]);
+  const prices = useLivePrices(holdingSymbols);
+
+  const loadPortfolio = useCallback(async ({ showLoading = true } = {}) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       setError("");
       const [meRes, portfolioRes, analyticsRes, transactionsRes] = await Promise.all([
         api.get("/api/auth/me"),
@@ -250,23 +259,91 @@ const Portfolio = () => {
       setError(message);
       push(message, "error");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  };
+  }, [push]);
 
   useEffect(() => {
     loadPortfolio();
-  }, []);
+  }, [loadPortfolio]);
+
+  useEffect(() => {
+    const refreshSnapshot = () => {
+      loadPortfolio({ showLoading: false });
+    };
+
+    socket.on("portfolio-update", refreshSnapshot);
+    socket.on("position-update", refreshSnapshot);
+    socket.on("transaction-update", refreshSnapshot);
+    socket.on("order-update", refreshSnapshot);
+    socket.on("connect", refreshSnapshot);
+
+    return () => {
+      socket.off("portfolio-update", refreshSnapshot);
+      socket.off("position-update", refreshSnapshot);
+      socket.off("transaction-update", refreshSnapshot);
+      socket.off("order-update", refreshSnapshot);
+      socket.off("connect", refreshSnapshot);
+    };
+  }, [loadPortfolio]);
+
+  const liveHoldings = useMemo(() => {
+    return holdings.map((holding) => {
+      const quote = prices[holding.symbol];
+      const livePrice = Number(quote?.price ?? quote?.c);
+      const fallbackPrice = Number(holding.currentPrice);
+      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
+        ? true
+        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
+      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
+      const quantity = Number(holding.quantity) || 0;
+      const investedValue = Number(holding.avgBuyPrice || 0) * quantity;
+      const currentValue = hasPrice ? currentPrice * quantity : null;
+      const pnl = hasPrice ? currentValue - investedValue : null;
+      const pnlPct = hasPrice && investedValue > 0 ? (pnl / investedValue) * 100 : null;
+
+      return {
+        ...holding,
+        currentPrice,
+        currentValue,
+        totalInvested: investedValue,
+        investedValue,
+        pnl,
+        pnlPct,
+        valuationAvailable: hasPrice,
+        quoteStale: Boolean(quote?.stale ?? holding.quoteStale),
+        quoteStatus: quote?.status || holding.quoteStatus,
+        priceUpdatedAt: quote?.fetchedAt || holding.priceUpdatedAt
+      };
+    });
+  }, [holdings, prices]);
+
+  const liveAnalytics = useMemo(() => {
+    const invested = liveHoldings.reduce((sum, holding) => sum + (Number(holding.investedValue) || 0), 0);
+    const unavailable = liveHoldings.some((holding) => holding.valuationAvailable === false);
+    const currentValue = unavailable
+      ? null
+      : liveHoldings.reduce((sum, holding) => sum + (Number(holding.currentValue) || 0), 0);
+    const pnl = currentValue === null ? null : currentValue - invested;
+    return {
+      ...(analytics || {}),
+      invested,
+      currentValue,
+      pnl,
+      pnlPct: Number.isFinite(Number(pnl)) && invested > 0 ? (pnl / invested) * 100 : null,
+      valuationAvailable: !unavailable
+    };
+  }, [analytics, liveHoldings]);
 
   const derived = useMemo(() => {
-    const holdingRows = [...holdings].sort((left, right) => right.currentValue - left.currentValue);
+    const holdingRows = [...liveHoldings].sort((left, right) => (Number(right.currentValue) || 0) - (Number(left.currentValue) || 0));
     const allocationRows = holdingRows
       .filter((item) => Number(item.currentValue) > 0)
       .map((item, index) => ({
         symbol: item.symbol,
         name: item.companyName,
         value: Number(item.currentValue) || 0,
-        percent: analytics?.currentValue ? ((Number(item.currentValue) || 0) / analytics.currentValue) * 100 : 0,
+        percent: liveAnalytics?.currentValue ? ((Number(item.currentValue) || 0) / liveAnalytics.currentValue) * 100 : 0,
         color: chartColors[index % chartColors.length]
       }));
 
@@ -293,7 +370,7 @@ const Portfolio = () => {
 
     const bestHolding = [...holdingRows].sort((left, right) => (right.pnlPct || 0) - (left.pnlPct || 0))[0] || null;
     const worstHolding = [...holdingRows].sort((left, right) => (left.pnlPct || 0) - (right.pnlPct || 0))[0] || null;
-    const largestPosition = [...holdingRows].sort((left, right) => right.currentValue - left.currentValue)[0] || null;
+    const largestPosition = [...holdingRows].sort((left, right) => (Number(right.currentValue) || 0) - (Number(left.currentValue) || 0))[0] || null;
 
     return {
       holdingRows,
@@ -307,16 +384,16 @@ const Portfolio = () => {
       bestHolding,
       worstHolding,
       largestPosition,
-      totalPortfolioValue: (Number(user?.balance) || 0) + (Number(analytics?.currentValue) || 0),
-      investedAmount: Number(analytics?.invested) || 0,
+      totalPortfolioValue: (Number(user?.balance) || 0) + (Number(liveAnalytics?.currentValue) || 0),
+      investedAmount: Number(liveAnalytics?.invested) || 0,
       availableCash: Number(user?.balance) || 0,
-      totalProfitLoss: ((Number(user?.balance) || 0) + (Number(analytics?.currentValue) || 0)) - STARTING_CAPITAL,
+      totalProfitLoss: ((Number(user?.balance) || 0) + (Number(liveAnalytics?.currentValue) || 0)) - STARTING_CAPITAL,
       totalProfitLossPct:
         STARTING_CAPITAL > 0
-          ? ((((Number(user?.balance) || 0) + (Number(analytics?.currentValue) || 0)) - STARTING_CAPITAL) / STARTING_CAPITAL) * 100
+          ? ((((Number(user?.balance) || 0) + (Number(liveAnalytics?.currentValue) || 0)) - STARTING_CAPITAL) / STARTING_CAPITAL) * 100
           : 0
     };
-  }, [analytics, holdings, transactions, user]);
+  }, [liveAnalytics, liveHoldings, transactions, user]);
 
   const hasHoldings = derived.holdingRows.length > 0;
 
@@ -350,7 +427,7 @@ const Portfolio = () => {
             <div>
               <div className="flex items-center gap-2 text-red-200">
                 <CircleAlert className="h-5 w-5" />
-                <h3 className="text-sm font-semibold uppercase tracking-[0.2em]">Portfolio unavailable</h3>
+                <h3 className="text-sm font-semibold uppercase">Portfolio unavailable</h3>
               </div>
               <p className="mt-3 max-w-2xl text-sm text-red-100/90">
                 {error}
@@ -359,7 +436,7 @@ const Portfolio = () => {
             <button
               type="button"
               onClick={loadPortfolio}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-300/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20"
+              className="inline-flex items-center gap-2 rounded-2xl border border-red-300/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20"
             >
               <RefreshCcw className="h-4 w-4" />
               Retry
@@ -377,35 +454,34 @@ const Portfolio = () => {
           title="Portfolio"
           subtitle="Track holdings, performance, and sector allocation in real time."
         />
-        <GlassPanel className="overflow-hidden border border-borderGlow/60 bg-panel/80 p-0">
+        <GlassPanel className="overflow-hidden border border-white/10 bg-[#121320] p-0">
           <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="relative overflow-hidden p-6 md:p-8">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.16),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.12),transparent_35%)]" />
-              <div className="relative flex h-full flex-col justify-between gap-8">
+            <div className="p-6 md:p-8">
+              <div className="flex h-full flex-col justify-between gap-8">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.35em] text-cyan-200/70">Professional onboarding</p>
+                  <p className="text-xs font-medium text-[#A1A1B5]">Portfolio setup</p>
                   <h3 className="mt-4 text-3xl font-semibold text-white md:text-4xl">
                     Your portfolio is ready for its first position.
                   </h3>
-                  <p className="mt-4 max-w-xl text-sm leading-6 text-slate-300">
+                  <p className="mt-4 max-w-xl text-sm leading-6 text-[#C2C4D2]">
                     Start trading to unlock allocation charts, growth analytics, and live risk metrics. The dashboard will automatically populate as soon as you place your first buy order.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.25em] text-slate-300">
-                  <span className="rounded-full border border-borderGlow/60 bg-base/70 px-3 py-2">Equity Curve</span>
-                  <span className="rounded-full border border-borderGlow/60 bg-base/70 px-3 py-2">Allocation</span>
-                  <span className="rounded-full border border-borderGlow/60 bg-base/70 px-3 py-2">Volatility</span>
+                <div className="flex flex-wrap gap-3 text-xs text-[#C2C4D2]">
+                  <span className="rounded-2xl border border-white/10 bg-[#080910] px-3 py-2">Equity Curve</span>
+                  <span className="rounded-2xl border border-white/10 bg-[#080910] px-3 py-2">Allocation</span>
+                  <span className="rounded-2xl border border-white/10 bg-[#080910] px-3 py-2">Volatility</span>
                 </div>
                 <Link
                   to="/"
-                  className="inline-flex w-fit items-center gap-2 rounded-xl border border-cyan-400/50 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+                  className="inline-flex w-fit items-center gap-2 rounded-2xl border border-cyan/40 bg-cyan/10 px-5 py-3 text-sm font-semibold text-cyan transition hover:bg-cyan/20"
                 >
                   Start Trading
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>
-            <div className="border-t border-borderGlow/50 p-6 md:p-8 lg:border-l lg:border-t-0">
+            <div className="border-t border-white/10 p-6 md:p-8 lg:border-l lg:border-t-0">
               <div className="grid gap-4">
                 <MetricCard
                   label="Total Portfolio Value"
@@ -439,7 +515,7 @@ const Portfolio = () => {
         <button
           type="button"
           onClick={loadPortfolio}
-          className="inline-flex items-center gap-2 rounded-xl border border-borderGlow/60 bg-panel/70 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/50 hover:text-cyan-200"
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-[#121320] px-4 py-3 text-sm font-semibold text-[#E7E9F3] transition hover:border-cyan/40 hover:text-cyan"
         >
           <RefreshCcw className="h-4 w-4" />
           Refresh
@@ -521,18 +597,18 @@ const Portfolio = () => {
             </div>
             <div className="flex flex-col gap-3">
               {derived.allocationRows.map((item, index) => (
-                <div key={item.symbol} className="rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-3">
+                <div key={item.symbol} className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-3">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color || chartColors[index % chartColors.length] }} />
                       <div>
                         <p className="text-sm font-semibold text-white">{item.symbol}</p>
-                        <p className="text-xs text-slate-400">{item.name}</p>
+                        <p className="text-xs text-[#A1A1B5]">{item.name}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-white">{formatPercent(item.percent)}</p>
-                      <p className="text-xs text-slate-400">{formatCurrency(item.value)}</p>
+                      <p className="text-xs text-[#A1A1B5]">{formatCurrency(item.value)}</p>
                     </div>
                   </div>
                 </div>
@@ -548,49 +624,49 @@ const Portfolio = () => {
             subtitle="Volatility and leadership across the current book."
           />
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">Portfolio Volatility</p>
+            <div className="rounded-2xl border border-white/10 bg-[#080910] p-4">
+              <p className="text-[11px] uppercase text-[#A1A1B5]">Portfolio Volatility</p>
               <p className="mt-3 text-2xl font-semibold text-white">{formatPercent(derived.volatility)}</p>
-              <p className="mt-2 text-xs text-slate-400">Annualized from daily returns</p>
+              <p className="mt-2 text-xs text-[#A1A1B5]">Annualized from daily returns</p>
             </div>
-            <div className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">Largest Position</p>
+            <div className="rounded-2xl border border-white/10 bg-[#080910] p-4">
+              <p className="text-[11px] uppercase text-[#A1A1B5]">Largest Position</p>
               <p className="mt-3 text-2xl font-semibold text-white">{derived.largestPosition?.symbol || "—"}</p>
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-[#A1A1B5]">
                 {derived.largestPosition ? formatCurrency(derived.largestPosition.currentValue) : "No holdings"}
               </p>
             </div>
-            <div className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">Best Performing Stock</p>
+            <div className="rounded-2xl border border-white/10 bg-[#080910] p-4">
+              <p className="text-[11px] uppercase text-[#A1A1B5]">Best Performing Stock</p>
               <p className="mt-3 text-2xl font-semibold text-white">{derived.bestHolding?.symbol || "—"}</p>
-              <p className="mt-2 text-xs text-cyan-200">
+              <p className="mt-2 text-xs text-emerald-400">
                 {derived.bestHolding ? formatPercent(derived.bestHolding.pnlPct) : "No holdings"}
               </p>
             </div>
-            <div className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">Worst Performing Stock</p>
+            <div className="rounded-2xl border border-white/10 bg-[#080910] p-4">
+              <p className="text-[11px] uppercase text-[#A1A1B5]">Worst Performing Stock</p>
               <p className="mt-3 text-2xl font-semibold text-white">{derived.worstHolding?.symbol || "—"}</p>
               <p className="mt-2 text-xs text-red-200">
                 {derived.worstHolding ? formatPercent(derived.worstHolding.pnlPct) : "No holdings"}
               </p>
             </div>
           </div>
-          <div className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">Performance Snapshot</p>
-            <div className="mt-4 grid gap-3 text-sm text-slate-300">
+          <div className="rounded-2xl border border-white/10 bg-[#080910] p-4">
+            <p className="text-[11px] uppercase text-[#A1A1B5]">Performance Snapshot</p>
+            <div className="mt-4 grid gap-3 text-sm text-[#C2C4D2]">
               <div className="flex items-center justify-between">
                 <span>Invested Capital</span>
                 <span className="font-semibold text-white">{formatCurrency(derived.investedAmount)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Realized + Unrealized P/L</span>
-                <span className={`font-semibold ${derived.totalProfitLoss >= 0 ? "text-cyan-200" : "text-red-200"}`}>
+                <span className={`font-semibold ${derived.totalProfitLoss >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                   {formatCurrency(derived.totalProfitLoss)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Return on Equity</span>
-                <span className={`font-semibold ${derived.totalProfitLoss >= 0 ? "text-cyan-200" : "text-red-200"}`}>
+                <span className={`font-semibold ${derived.totalProfitLoss >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                   {formatPercent(derived.totalProfitLossPct)}
                 </span>
               </div>
@@ -618,10 +694,10 @@ const Portfolio = () => {
                   contentStyle={{
                     background: "rgba(7, 11, 20, 0.96)",
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 16
+                    borderRadius: 8
                   }}
                 />
-                <Area type="monotone" dataKey="equity" stroke="#22D3EE" fill="rgba(34, 211, 238, 0.18)" strokeWidth={2} />
+                <Area type="monotone" dataKey="equity" stroke="#38BDF8" fill="rgba(56, 189, 248, 0.14)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -645,10 +721,10 @@ const Portfolio = () => {
                   contentStyle={{
                     background: "rgba(7, 11, 20, 0.96)",
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 16
+                    borderRadius: 8
                   }}
                 />
-                <Line type="monotone" dataKey="growth" stroke="#A855F7" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="growth" stroke="#38BDF8" strokeWidth={2.5} dot={false} />
               </ReLineChart>
             </ResponsiveContainer>
           </div>
@@ -674,12 +750,12 @@ const Portfolio = () => {
                   contentStyle={{
                     background: "rgba(7, 11, 20, 0.96)",
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 16
+                    borderRadius: 8
                   }}
                 />
                 <Bar dataKey="return" radius={[6, 6, 0, 0]}>
                   {derived.dailyReturns.map((entry, index) => (
-                    <Cell key={`cell-${entry.date}`} fill={index === 0 || entry.return >= 0 ? "#22D3EE" : "#F87171"} />
+                    <Cell key={`cell-${entry.date}`} fill={index === 0 || entry.return >= 0 ? "#22C55E" : "#EF4444"} />
                   ))}
                 </Bar>
               </BarChart>
@@ -705,10 +781,10 @@ const Portfolio = () => {
                   contentStyle={{
                     background: "rgba(7, 11, 20, 0.96)",
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 16
+                    borderRadius: 8
                   }}
                 />
-                <Line type="monotone" dataKey="return" stroke="#F59E0B" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="return" stroke="#38BDF8" strokeWidth={2.5} dot={false} />
               </ReLineChart>
             </ResponsiveContainer>
           </div>
@@ -723,7 +799,7 @@ const Portfolio = () => {
           action={
             <Link
               to="/"
-              className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/20"
+              className="inline-flex items-center gap-2 rounded-2xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/20"
             >
               Start Trading
               <ArrowUpRight className="h-4 w-4" />
@@ -734,35 +810,35 @@ const Portfolio = () => {
         <div className="mt-6 overflow-x-auto">
           <table className="min-w-[960px] w-full border-separate border-spacing-0 text-left">
             <thead>
-              <tr className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                <th className="border-b border-borderGlow/60 px-4 py-3">Symbol</th>
-                <th className="border-b border-borderGlow/60 px-4 py-3">Quantity</th>
-                <th className="border-b border-borderGlow/60 px-4 py-3">Avg Buy Price</th>
-                <th className="border-b border-borderGlow/60 px-4 py-3">Current Price</th>
-                <th className="border-b border-borderGlow/60 px-4 py-3">Invested Value</th>
-                <th className="border-b border-borderGlow/60 px-4 py-3">Current Value</th>
-                <th className="border-b border-borderGlow/60 px-4 py-3">Profit / Loss</th>
-                <th className="border-b border-borderGlow/60 px-4 py-3">Profit / Loss %</th>
+              <tr className="text-[11px] uppercase text-[#A1A1B5]">
+                <th className="border-b border-white/10 px-4 py-3">Symbol</th>
+                <th className="border-b border-white/10 px-4 py-3">Quantity</th>
+                <th className="border-b border-white/10 px-4 py-3">Avg Buy Price</th>
+                <th className="border-b border-white/10 px-4 py-3">Current Price</th>
+                <th className="border-b border-white/10 px-4 py-3">Invested Value</th>
+                <th className="border-b border-white/10 px-4 py-3">Current Value</th>
+                <th className="border-b border-white/10 px-4 py-3">Profit / Loss</th>
+                <th className="border-b border-white/10 px-4 py-3">Profit / Loss %</th>
               </tr>
             </thead>
             <tbody>
               {derived.holdingRows.map((holding) => (
-                <tr key={holding.symbol} className="border-b border-borderGlow/40 transition hover:bg-panel/50">
+                <tr key={holding.symbol} className="border-b border-white/10 transition hover:bg-[#1A1B2B]/50">
                   <td className="px-4 py-4">
                     <div>
                       <p className="font-semibold text-white">{holding.symbol}</p>
-                      <p className="text-xs text-slate-400">{holding.companyName}</p>
+                      <p className="text-xs text-[#A1A1B5]">{holding.companyName}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-slate-200">{holding.quantity}</td>
-                  <td className="px-4 py-4 text-slate-200">{formatCurrency(holding.avgBuyPrice)}</td>
-                  <td className="px-4 py-4 text-slate-200">{formatCurrency(holding.currentPrice)}</td>
-                  <td className="px-4 py-4 text-slate-200">{formatCurrency(holding.totalInvested)}</td>
-                  <td className="px-4 py-4 text-slate-200">{formatCurrency(holding.currentValue)}</td>
-                  <td className={`px-4 py-4 font-semibold ${holding.pnl >= 0 ? "text-cyan-200" : "text-red-200"}`}>
+                  <td className="px-4 py-4 text-[#E7E9F3]">{holding.quantity}</td>
+                  <td className="px-4 py-4 text-[#E7E9F3]">{formatCurrency(holding.avgBuyPrice)}</td>
+                  <td className="px-4 py-4 text-[#E7E9F3]">{formatCurrency(holding.currentPrice)}</td>
+                  <td className="px-4 py-4 text-[#E7E9F3]">{formatCurrency(holding.totalInvested)}</td>
+                  <td className="px-4 py-4 text-[#E7E9F3]">{formatCurrency(holding.currentValue)}</td>
+                  <td className={`px-4 py-4 font-semibold ${holding.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {formatCurrency(holding.pnl)}
                   </td>
-                  <td className={`px-4 py-4 font-semibold ${holding.pnlPct >= 0 ? "text-cyan-200" : "text-red-200"}`}>
+                  <td className={`px-4 py-4 font-semibold ${holding.pnlPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {formatPercent(holding.pnlPct)}
                   </td>
                 </tr>

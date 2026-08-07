@@ -8,8 +8,8 @@ const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.get("/", getCompetitions);
+router.get("/", requireAuth, getCompetitions);
 router.post("/join/:id", requireAuth, joinCompetition);
-router.get("/:id/leaderboard", getCompetitionLeaderboard);
+router.get("/:id/leaderboard", requireAuth, getCompetitionLeaderboard);
 
 module.exports = router;

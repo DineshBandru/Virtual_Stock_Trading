@@ -28,33 +28,14 @@ const adminRoutes = require("./routes/admin");
 const { errorHandler } = require("./middleware/error");
 const { attachSocket } = require("./socket");
 const { startOrderProcessor } = require("./services/orderService");
+const { getCorsOptions, validateProductionEnv } = require("./config/env");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
+validateProductionEnv();
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
-if (!allowedOrigins.includes("http://localhost:3001")) {
-  allowedOrigins.push("http://localhost:3001");
-}
-// allow the dev server on alternate port (vite may pick 3002+)
-if (!allowedOrigins.includes("http://localhost:3002")) {
-  allowedOrigins.push("http://localhost:3002");
-}
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true
-};
+const corsOptions = getCorsOptions();
 
 const io = new Server(server, {
   cors: corsOptions
@@ -89,6 +70,14 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+app.get("/api/ready", (req, res) => {
+  const mongoReady = mongoose.connection.readyState === 1;
+  return res.status(mongoReady ? 200 : 503).json({
+    status: mongoReady ? "ready" : "not_ready",
+    database: mongoReady ? "connected" : "unavailable"
+  });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/stocks", stockRoutes);
 app.use("/api/market-depth", marketDepthRoutes);
@@ -106,7 +95,7 @@ app.use("/api/admin", adminRoutes);
 
 app.use(errorHandler);
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5500;
 const mongoUri = process.env.MONGO_URI;
 
 const connectWithRetry = async (maxAttempts = 5) => {

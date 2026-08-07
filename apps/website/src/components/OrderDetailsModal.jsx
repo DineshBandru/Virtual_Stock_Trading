@@ -20,10 +20,11 @@ const formatDate = (value) => {
 };
 
 const statusTone = {
-  Pending: "text-amber-300 border-amber-400/40 bg-amber-400/10",
-  Executed: "text-cyan-300 border-cyan-400/40 bg-cyan-400/10",
-  Cancelled: "text-slate-300 border-borderGlow/60 bg-base/70",
-  Rejected: "text-red-300 border-red-400/40 bg-red-400/10"
+  Pending: "text-[#C2C4D2] border-white/10 bg-[#1A1B2B]",
+  Triggered: "text-amber-300 border-amber-500/30 bg-amber-500/10",
+  Executed: "text-cyan border-cyan/30 bg-cyan/10",
+  Cancelled: "text-[#C2C4D2] border-white/10 bg-[#080910]",
+  Rejected: "text-red-400 border-red-500/30 bg-red-500/10"
 };
 
 const OrderDetailsModal = ({ order, open, onClose, onCancel, cancelling }) => {
@@ -43,9 +44,9 @@ const OrderDetailsModal = ({ order, open, onClose, onCancel, cancelling }) => {
       <GlassPanel className="max-h-[90vh] w-full max-w-2xl overflow-y-auto">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Order Details</p>
+            <p className="text-xs uppercase text-[#A1A1B5]">Order Details</p>
             <h3 className="mt-2 text-2xl font-semibold text-white">{order.symbol}</h3>
-            <p className="mt-1 text-sm text-slate-300">{order.companyName}</p>
+            <p className="mt-1 text-sm text-[#C2C4D2]">{order.companyName}</p>
           </div>
           <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusTone[order.status] || statusTone.Pending}`}>
             {order.status}
@@ -60,32 +61,35 @@ const OrderDetailsModal = ({ order, open, onClose, onCancel, cancelling }) => {
             { label: "Trigger Price", value: formatCurrency(order.triggerPrice) },
             { label: "Limit Price", value: formatCurrency(order.limitPrice) },
             { label: "Execution Price", value: formatCurrency(order.executionPrice) },
+            { label: "Executed Qty", value: order.executedQuantity || 0 },
             { label: "Placed At", value: formatDate(order.createdAt) },
-            { label: "Executed At", value: formatDate(order.executedAt) }
+            { label: "Triggered At", value: formatDate(order.stopTriggeredAt) },
+            { label: "Executed At", value: formatDate(order.executedAt) },
+            { label: "Cancelled At", value: formatDate(order.cancelledAt) }
           ].map((item) => (
-            <div key={item.label} className="rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">{item.label}</p>
+            <div key={item.label} className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4">
+              <p className="text-[11px] uppercase text-[#A1A1B5]">{item.label}</p>
               <p className="mt-2 font-mono text-sm text-white">{item.value}</p>
             </div>
           ))}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-4">
+        <div className="mt-6 rounded-2xl border border-white/10 bg-[#080910] px-4 py-4">
           <div className="flex items-center justify-between gap-3">
             {steps.map((step, index) => (
               <div key={step.label} className="flex flex-1 items-center gap-2">
-                <div className={`h-3 w-3 rounded-full ${step.done ? "bg-cyan-300" : "bg-slate-600"}`} />
-                <span className={`text-xs uppercase tracking-[0.2em] ${step.done ? "text-white" : "text-slate-500"}`}>
+                <div className={`h-3 w-3 rounded-full ${step.done ? "bg-cyan" : "bg-slate-600"}`} />
+                <span className={`text-xs uppercase ${step.done ? "text-white" : "text-[#6F7487]"}`}>
                   {step.label}
                 </span>
-                {index < steps.length - 1 ? <span className="mx-2 h-px flex-1 bg-borderGlow/60" /> : null}
+                {index < steps.length - 1 ? <span className="mx-2 h-px flex-1 bg-borderGlow" /> : null}
               </div>
             ))}
           </div>
         </div>
 
         {order.stopTriggeredAt ? (
-          <div className="mt-4 rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-4 text-sm text-slate-300">
+          <div className="mt-4 rounded-2xl border border-white/10 bg-[#080910] px-4 py-4 text-sm text-[#C2C4D2]">
             Stop trigger activated at {formatDate(order.stopTriggeredAt)}
           </div>
         ) : null}
@@ -96,20 +100,26 @@ const OrderDetailsModal = ({ order, open, onClose, onCancel, cancelling }) => {
           </div>
         ) : null}
 
+        {order.cancellationReason ? (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-[#C2C4D2]">
+            {order.cancellationReason}
+          </div>
+        ) : null}
+
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border border-borderGlow/60 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+            className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
           >
             Close
           </button>
-          {order.status === "Pending" && onCancel ? (
+          {["Pending", "Triggered"].includes(order.status) && onCancel ? (
             <button
               type="button"
               onClick={onCancel}
               disabled={cancelling}
-              className="flex-1 rounded-xl border border-red-400/70 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-2xl border border-red-400/70 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {cancelling ? "Cancelling..." : "Cancel Order"}
             </button>

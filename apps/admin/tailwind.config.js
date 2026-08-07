@@ -4,23 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: "#0A0A0F",
-        cyan: "#00F5FF",
-        amber: "#FFB800",
-        panel: "#0F111A",
-        borderGlow: "#1C2333"
+        base: "#0B111C",
+        cyan: "#60A5FA",
+        amber: "#D97706",
+        panel: "#121A27",
+        borderGlow: "#273449"
       },
       fontFamily: {
         heading: ["Syne", "sans-serif"],
         mono: ["DM Mono", "monospace"]
       },
       boxShadow: {
-        glow: "0 0 12px rgba(0, 245, 255, 0.45)",
-        glowAmber: "0 0 12px rgba(255, 184, 0, 0.45)"
-      },
-      backgroundImage: {
-        scanlines:
-          "repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)"
+        glow: "0 18px 40px rgba(0, 0, 0, 0.22)",
+        glowAmber: "0 18px 40px rgba(0, 0, 0, 0.22)"
       }
     }
   },

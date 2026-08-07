@@ -16,18 +16,27 @@ const orderSchema = new mongoose.Schema(
     limitPrice: { type: Number },
     status: {
       type: String,
-      enum: ["Pending", "Executed", "Cancelled", "Rejected"],
+      enum: ["Pending", "Triggered", "Executed", "Cancelled", "Rejected"],
       default: "Pending"
     },
     executionPrice: { type: Number },
+    executedQuantity: { type: Number, default: 0 },
     stopTriggeredAt: { type: Date },
     executedAt: { type: Date },
-    rejectionReason: { type: String }
+    cancelledAt: { type: Date },
+    rejectionReason: { type: String },
+    cancellationReason: { type: String },
+    processingToken: { type: String },
+    processingStartedAt: { type: Date },
+    lastCheckedAt: { type: Date },
+    submittedAt: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );
 
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ userId: 1, symbol: 1, status: 1 });
+orderSchema.index({ status: 1, symbol: 1, createdAt: 1 });
+orderSchema.index({ processingToken: 1 });
 
 module.exports = mongoose.model("Order", orderSchema);

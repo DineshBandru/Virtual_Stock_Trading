@@ -64,6 +64,7 @@ const CandlestickChart = ({
   symbol = "",
   quote = null,
   period = "1M",
+  historyMeta = null,
   mode = "candles",
   onModeChange,
   onPeriodChange
@@ -287,6 +288,12 @@ const CandlestickChart = ({
             </span>
           </div>
           <p className="mt-2 text-sm text-slate-400">{chartSubtitle}</p>
+          {historyMeta?.fetchedAt ? (
+            <p className="mt-1 text-xs text-slate-500">
+              History {historyMeta.cached ? historyMeta.stale ? "stale cached" : "cached" : "updated"} at{" "}
+              {new Date(historyMeta.fetchedAt).toLocaleString()}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">

@@ -2,7 +2,7 @@ const { buildLeaderboard } = require("../utils/leaderboard");
 
 const getLeaderboard = async (req, res, next) => {
   try {
-    const payload = await buildLeaderboard();
+    const payload = await buildLeaderboard(req.user?.id);
     return res.json(payload);
   } catch (err) {
     return next(err);

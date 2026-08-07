@@ -67,11 +67,12 @@ const Register = ({ inline = false }) => {
     <div className="flex flex-col gap-6">
       {!inline ? (
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-amber">
-            Virtual Stock Terminal
-          </p>
+          <div className="flex items-center gap-3">
+            <img src="/tradeabhyas-logo.png" alt="Trade Abhyas" className="h-14 w-14 rounded-xl object-contain" />
+            <p className="text-xs font-medium text-cyan">Trade Abhyas</p>
+          </div>
           <h1 className="mt-3 font-heading text-3xl">Create Your Desk</h1>
-          <p className="mt-2 text-sm text-slate-300">
+          <p className="mt-2 text-sm text-[#C2C4D2]">
             Start with ₹10,00,000 virtual capital and trade risk-free.
           </p>
         </div>
@@ -80,7 +81,7 @@ const Register = ({ inline = false }) => {
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         {/* Top error banner */}
         {error ? (
-          <div className="rounded-lg border border-red-500 bg-red-900/60 p-3 text-sm text-red-100">
+          <div className="rounded-2xl border border-red-500 bg-red-900/60 p-3 text-sm text-red-100">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">{error}</div>
               <button
@@ -93,41 +94,41 @@ const Register = ({ inline = false }) => {
             </div>
           </div>
         ) : null}
-        <label className="text-xs uppercase tracking-[0.2em] text-slate-400">
+        <label className="text-xs uppercase text-[#A1A1B5]">
           Name
           <input
             type="text"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-borderGlow/70 bg-base/70 px-4 py-3 text-sm text-white focus:border-amber focus:outline-none"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white focus:border-cyan focus:outline-none"
             placeholder="Your name"
           />
         </label>
 
-        <label className="text-xs uppercase tracking-[0.2em] text-slate-400">
+        <label className="text-xs uppercase text-[#A1A1B5]">
           Email
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-borderGlow/70 bg-base/70 px-4 py-3 text-sm text-white focus:border-amber focus:outline-none"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white focus:border-cyan focus:outline-none"
             placeholder="you@domain.com"
           />
         </label>
 
-        <label className="text-xs uppercase tracking-[0.2em] text-slate-400">
+        <label className="text-xs uppercase text-[#A1A1B5]">
           Password
           <input
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-borderGlow/70 bg-base/70 px-4 py-3 text-sm text-white focus:border-amber focus:outline-none"
+            className="mt-2 w-full rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white focus:border-cyan focus:outline-none"
             placeholder="Create a strong password"
           />
         </label>
         {/* Password requirements guidance + live checklist */}
         <div className="mt-2 flex flex-col gap-1 text-xs">
-          <div className="text-slate-300">Password must include:</div>
+          <div className="text-[#C2C4D2]">Password must include:</div>
           {(() => {
             const checks = pwChecks(password);
             const items = [
@@ -138,7 +139,7 @@ const Register = ({ inline = false }) => {
               { ok: checks.special, text: 'A special character' },
             ];
             return items.map((it, idx) => (
-              <div key={idx} className={`flex items-center gap-2 ${it.ok ? 'text-emerald-400' : 'text-slate-400'}`}>
+              <div key={idx} className={`flex items-center gap-2 ${it.ok ? 'text-emerald-400' : 'text-[#A1A1B5]'}`}>
                 <span className={`inline-block h-4 w-4 flex-none rounded-sm ${it.ok ? 'bg-emerald-500' : 'bg-slate-600'}`} />
                 <span>{it.text}</span>
               </div>
@@ -156,7 +157,7 @@ const Register = ({ inline = false }) => {
         <button
           type="submit"
           disabled={loading}
-          className="mt-4 rounded-xl border border-amber/80 bg-amber/10 px-4 py-3 text-sm font-semibold text-amber shadow-glowAmber transition hover:bg-amber/20 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 rounded-2xl border border-cyan/80 bg-cyan/10 px-4 py-3 text-sm font-semibold text-cyan shadow-none transition hover:bg-cyan/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create Provision Virtual Desk Account"}
         </button>

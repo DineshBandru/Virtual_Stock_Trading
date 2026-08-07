@@ -1,8 +1,19 @@
 node_modules/
 
 .env
+.env.local
+.env.production
 client/.env
 server/.env
+backend/.env
+backend/.env.local
+backend/.env.production
+apps/website/.env
+apps/website/.env.local
+apps/website/.env.production
+apps/admin/.env
+apps/admin/.env.local
+apps/admin/.env.production
 
 dist/
 build/
@@ -10,3 +21,5 @@ build/
 .vscode/
 
 *.log.env
+.runtime-*.log
+.runtime-dev-*.log

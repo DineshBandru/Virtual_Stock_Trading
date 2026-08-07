@@ -1,32 +1,27 @@
-import { fileURLToPath } from "node:url";
-import react from "../website/node_modules/@vitejs/plugin-react/dist/index.js";
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
 
-const websiteNodeModules = fileURLToPath(new URL("../website/node_modules/", import.meta.url));
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  if (mode === "production" && !env.VITE_API_URL) {
+    throw new Error("VITE_API_URL must be configured for production admin builds");
+  }
+  if (mode === "production" && !env.VITE_WEBSITE_URL) {
+    throw new Error("VITE_WEBSITE_URL must be configured for production admin builds");
+  }
 
-export default {
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@vitejs/plugin-react": `${websiteNodeModules}@vitejs/plugin-react`,
-      axios: `${websiteNodeModules}axios`,
-      "framer-motion": `${websiteNodeModules}framer-motion`,
-      "lucide-react": `${websiteNodeModules}lucide-react`,
-      react: `${websiteNodeModules}react`,
-      "react-dom": `${websiteNodeModules}react-dom`,
-      "react-router-dom": `${websiteNodeModules}react-router-dom`
-    }
-  },
-  optimizeDeps: {
-    include: ["react", "react-dom", "react-router-dom", "axios", "lucide-react", "framer-motion"]
-  },
-  server: {
-    port: 3001,
-    proxy: {
-      "/api": "http://localhost:5000",
-      "/socket.io": {
-        target: "http://localhost:5000",
-        ws: true
+  return {
+    plugins: [react()],
+    server: {
+      port: 3016,
+      strictPort: true,
+      proxy: {
+        "/api": "http://localhost:5500",
+        "/socket.io": {
+          target: "http://localhost:5500",
+          ws: true
+        }
       }
     }
-  }
-};
+  };
+});

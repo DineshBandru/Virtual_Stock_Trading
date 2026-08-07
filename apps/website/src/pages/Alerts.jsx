@@ -72,13 +72,9 @@ const Alerts = () => {
 
   useEffect(() => {
     if (latestAlert) {
-      showToast?.(
-        `Alert: ${latestAlert.symbol} ${latestAlert.condition} ${formatCurrency(latestAlert.targetPrice)}`,
-        "success"
-      );
       loadAlerts();
     }
-  }, [latestAlert, loadAlerts, showToast]);
+  }, [latestAlert, loadAlerts]);
 
   useEffect(() => {
     const query = symbol.trim();
@@ -196,16 +192,19 @@ const Alerts = () => {
           { label: "Triggered", value: summary.triggered }
         ].map((item) => (
           <GlassPanel key={item.label}>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">{item.label}</p>
+            <p className="text-[11px] uppercase text-[#A1A1B5]">{item.label}</p>
             <p className="mt-3 text-3xl font-semibold text-white">{item.value}</p>
           </GlassPanel>
         ))}
       </div>
 
       {latestAlert ? (
-        <div className="rounded-2xl border border-amber-400/50 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-2xl border border-white/10 bg-[#1A1B2B] px-4 py-3 text-sm text-[#E7E9F3]">
           Alert triggered: {latestAlert.symbol} {conditionLabel[latestAlert.condition] || latestAlert.condition}{" "}
           {formatCurrency(latestAlert.targetPrice)}
+          {Number.isFinite(Number(latestAlert.triggeredPrice))
+            ? ` at ${formatCurrency(latestAlert.triggeredPrice)}`
+            : ""}
         </div>
       ) : null}
 
@@ -215,7 +214,7 @@ const Alerts = () => {
           <button
             type="button"
             onClick={loadAlerts}
-            className="rounded-xl border border-red-300/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-100 transition hover:bg-red-500/20"
+            className="rounded-2xl border border-red-300/60 px-4 py-2 text-xs font-semibold uppercase text-red-100 transition hover:bg-red-500/20"
           >
             Retry
           </button>
@@ -224,19 +223,19 @@ const Alerts = () => {
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <GlassPanel>
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Create Alert</p>
+          <p className="text-xs uppercase text-[#A1A1B5]">Create Alert</p>
           <h3 className="mt-2 text-lg font-semibold text-white">New price trigger</h3>
 
           <form onSubmit={handleCreate} className="mt-6 space-y-5">
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            <label className="block text-[11px] uppercase text-[#A1A1B5]">
               Stock Symbol
               <div className="relative mt-2">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6F7487]" />
                 <input
                   value={symbol}
                   onChange={(event) => setSymbol(event.target.value)}
                   placeholder="RELIANCE.NS"
-                  className="w-full rounded-2xl border border-borderGlow/60 bg-base/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                  className="w-full rounded-2xl border border-white/10 bg-[#080910] py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-[#6F7487] focus:border-cyan"
                 />
               </div>
             </label>
@@ -257,28 +256,28 @@ const Alerts = () => {
                     key={`${result.symbol}-${result.description}`}
                     type="button"
                     onClick={() => selectSearchResult(result)}
-                    className="w-full rounded-2xl border border-borderGlow/50 bg-base/60 px-4 py-3 text-left transition hover:border-cyan-400/50 hover:bg-cyan-400/10"
+                    className="w-full rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-left transition hover:border-cyan/40 hover:bg-cyan/10"
                   >
                     <p className="font-mono text-sm font-semibold text-white">{result.symbol}</p>
-                    <p className="mt-1 line-clamp-1 text-xs text-slate-400">{result.description}</p>
+                    <p className="mt-1 line-clamp-1 text-xs text-[#A1A1B5]">{result.description}</p>
                   </button>
                 ))}
               </div>
             ) : null}
 
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            <label className="block text-[11px] uppercase text-[#A1A1B5]">
               Condition
               <select
                 value={condition}
                 onChange={(event) => setCondition(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400"
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan"
               >
                 <option value="above">Price above</option>
                 <option value="below">Price below</option>
               </select>
             </label>
 
-            <label className="block text-[11px] uppercase tracking-[0.2em] text-slate-400">
+            <label className="block text-[11px] uppercase text-[#A1A1B5]">
               Target Price
               <input
                 type="number"
@@ -287,7 +286,7 @@ const Alerts = () => {
                 value={targetPrice}
                 onChange={(event) => setTargetPrice(event.target.value)}
                 placeholder="2500.00"
-                className="mt-2 w-full rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#6F7487] focus:border-cyan"
               />
             </label>
 
@@ -305,13 +304,13 @@ const Alerts = () => {
         <GlassPanel>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Alert List</p>
+              <p className="text-xs uppercase text-[#A1A1B5]">Alert List</p>
               <h3 className="mt-2 text-lg font-semibold text-white">Your price alerts</h3>
             </div>
             <button
               type="button"
               onClick={loadAlerts}
-              className="rounded-xl border border-borderGlow/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+              className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-semibold uppercase text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
             >
               Refresh
             </button>
@@ -322,7 +321,7 @@ const Alerts = () => {
               Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={index}
-                  className="rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-4"
+                  className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4"
                 >
                   <Skeleton className="h-3 w-1/3" />
                   <div className="mt-3">
@@ -334,28 +333,28 @@ const Alerts = () => {
                 </div>
               ))
             ) : alerts.length === 0 ? (
-              <div className="md:col-span-2 rounded-2xl border border-dashed border-borderGlow/60 bg-base/40 px-4 py-12 text-center text-sm text-slate-400">
+              <div className="md:col-span-2 rounded-2xl border border-dashed border-white/10 bg-[#080910] px-4 py-12 text-center text-sm text-[#A1A1B5]">
                 No alerts yet. Create a price alert to monitor a symbol automatically.
               </div>
             ) : (
               alerts.map((alert) => (
                 <div
                   key={alert._id}
-                  className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4 transition hover:border-cyan-400/40"
+                  className="rounded-2xl border border-white/10 bg-[#080910] p-4 transition hover:border-cyan/30"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-mono text-base font-semibold text-white">{alert.symbol}</p>
-                      <p className="mt-1 text-sm text-slate-300">
+                      <p className="mt-1 text-sm text-[#C2C4D2]">
                         {conditionLabel[alert.condition] || alert.condition}{" "}
                         <span className="font-semibold text-white">{formatCurrency(alert.targetPrice)}</span>
                       </p>
                     </div>
                     <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      className={`rounded-2xl border px-3 py-1 text-xs font-semibold ${
                         alert.triggered
-                          ? "border-amber-400/40 bg-amber-400/10 text-amber-200"
-                          : "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
+                          ? "border-white/10 bg-[#1A1B2B] text-[#C2C4D2]"
+                          : "border-cyan/30 bg-cyan/10 text-cyan"
                       }`}
                     >
                       {alert.triggered ? "Triggered" : "Active"}
@@ -363,14 +362,20 @@ const Alerts = () => {
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs text-slate-500">
-                      Created {formatDateTime(alert.createdAt)}
+                    <p className="text-xs text-[#6F7487]">
+                      {alert.triggered
+                        ? `Triggered ${formatDateTime(alert.triggeredAt)}${
+                            Number.isFinite(Number(alert.triggeredPrice))
+                              ? ` at ${formatCurrency(alert.triggeredPrice)}`
+                              : ""
+                          }`
+                        : `Created ${formatDateTime(alert.createdAt)}`}
                     </p>
                     <button
                       type="button"
                       onClick={() => handleDelete(alert._id)}
                       disabled={deletingId === alert._id}
-                      className="inline-flex items-center gap-2 rounded-xl border border-red-500/40 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-200 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 px-3 py-2 text-xs font-semibold uppercase text-red-200 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {deletingId === alert._id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />

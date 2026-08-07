@@ -44,7 +44,7 @@ const cancelOrderHandler = async (req, res, next) => {
     }
     return res.json({ order });
   } catch (err) {
-    if (err.message === "Only pending orders can be cancelled") {
+    if (err.message === "Only pending or triggered orders can be cancelled") {
       return res.status(400).json({ message: err.message });
     }
     return next(err);
@@ -108,7 +108,7 @@ module.exports = {
   cancelOrderValidation: [...orderIdValidation, runValidation],
   detailsValidation: [...orderIdValidation, runValidation],
   listValidation: [
-    query("status").optional().isIn(["Pending", "Executed", "Cancelled", "Rejected"]),
+    query("status").optional().isIn(["Pending", "Triggered", "Executed", "Cancelled", "Rejected"]),
     query("symbol").optional().isString().trim().notEmpty(),
     query("orderType").optional().isIn(ORDER_TYPES),
     runValidation

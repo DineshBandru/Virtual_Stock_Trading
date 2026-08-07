@@ -1,7 +1,8 @@
-const GlassPanel = ({ children, className = "" }) => {
+const GlassPanel = ({ children, className = "", ...props }) => {
   return (
     <div
-      className={`glass-panel rounded-2xl border border-borderGlow/60 bg-panel/70 p-5 shadow-glow ${className}`}
+      {...props}
+      className={`glass-panel rounded-2xl border p-5 transition-colors duration-200 ${className}`}
     >
       {children}
     </div>

@@ -1,26 +1,23 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
       colors: {
-        base: "#0A0A0F",
-        cyan: "#00F5FF",
-        amber: "#FFB800",
-        panel: "#0F111A",
-        borderGlow: "#1C2333"
+        base: "rgb(var(--color-base) / <alpha-value>)",
+        cyan: "rgb(var(--color-accent) / <alpha-value>)",
+        amber: "rgb(var(--color-amber) / <alpha-value>)",
+        panel: "rgb(var(--color-panel) / <alpha-value>)",
+        borderGlow: "rgb(var(--color-border) / <alpha-value>)"
       },
       fontFamily: {
         heading: ["Syne", "sans-serif"],
         mono: ["DM Mono", "monospace"]
       },
       boxShadow: {
-        glow: "0 0 12px rgba(0, 245, 255, 0.45)",
-        glowAmber: "0 0 12px rgba(255, 184, 0, 0.45)"
-      },
-      backgroundImage: {
-        scanlines:
-          "repeating-linear-gradient(180deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)"
+        glow: "0 18px 44px rgba(0, 0, 0, 0.28)",
+        glowAmber: "0 18px 44px rgba(0, 0, 0, 0.28)"
       }
     }
   },

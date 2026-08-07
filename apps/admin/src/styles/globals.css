@@ -4,36 +4,40 @@
 
 :root {
   color-scheme: dark;
+  --admin-bg: #0b111c;
+  --admin-bg-muted: #0f1724;
+  --admin-panel: #121a27;
+  --admin-panel-elevated: #172131;
+  --admin-border: #273449;
+  --admin-text: #f3f6fb;
+  --admin-muted: #93a4b8;
+  --admin-accent: #60a5fa;
 }
 
 body {
-  font-family: "Syne", sans-serif;
-  background-color: #0a0a0f;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 36, 0.9), rgba(11, 17, 28, 1)),
+    var(--admin-bg);
+  color: var(--admin-text);
 }
 
 .glass-panel {
-  backdrop-filter: blur(18px);
+  background: var(--admin-panel);
+  border-color: var(--admin-border);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
 }
 
 .auth-shell {
   background:
-      radial-gradient(circle at 20% 20%, rgba(0, 245, 255, 0.15), transparent 45%),
-      radial-gradient(circle at 80% 10%, rgba(255, 184, 0, 0.12), transparent 40%),
-      radial-gradient(circle at 20% 80%, rgba(0, 245, 255, 0.12), transparent 40%),
-      #0a0a0f;
+    radial-gradient(circle at 50% 0%, rgba(96, 165, 250, 0.12), transparent 34%),
+    linear-gradient(180deg, #0f1724 0%, #0b111c 100%);
   position: relative;
   overflow: hidden;
 }
 
 .auth-shell::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.25;
-  pointer-events: none;
+  content: none;
 }
 
 .auth-card {
@@ -41,51 +45,3 @@ body {
   z-index: 2;
 }
 
-.app-scanlines::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.03) 0px,
-    rgba(255, 255, 255, 0.03) 1px,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0) 4px
-  );
-  mix-blend-mode: soft-light;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.ticker-gradient {
-  background: linear-gradient(90deg, #00f5ff, #ffb800, #00f5ff);
-  background-size: 200% 200%;
-  animation: tickerFlow 12s linear infinite;
-}
-
-.ticker-band {
-  background: rgba(5, 8, 14, 0.7);
-  box-shadow: 0 0 18px rgba(0, 245, 255, 0.25);
-}
-
-.ticker-scroll {
-  animation: tickerScroll 18s linear infinite;
-}
-
-@keyframes tickerScroll {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-@keyframes tickerFlow {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 200% 50%;
-  }
-}

@@ -1,4 +1,3 @@
-const YahooFinance = require("yahoo-finance2").default;
 const {
   getQuote,
   getProfile,
@@ -6,8 +5,18 @@ const {
   ensureNseSymbol
 } = require("../utils/market");
 const { getSignal } = require("../utils/aiSignal");
+const { findActiveInstrument, searchInstruments } = require("../services/instrumentService");
 
-const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+const HISTORY_RANGES = {
+  "1D": { days: 7, interval: "5m", latestSessionOnly: true },
+  "5D": { days: 10, interval: "15m" },
+  "1W": { days: 10, interval: "15m" },
+  "1M": { days: 30, interval: "1d" },
+  "3M": { days: 90, interval: "1d" },
+  "6M": { days: 182, interval: "1d" },
+  "1Y": { days: 365, interval: "1d" },
+  "5Y": { days: 365 * 5, interval: "1wk" }
+};
 
 const TRENDING_NSE = [
   { symbol: "RELIANCE.NS", name: "Reliance Industries" },
@@ -34,15 +43,14 @@ const TRENDING_NSE = [
 
 const searchStocks = async (req, res, next) => {
   try {
-    const query = req.query.q;
+    const query = String(req.query.q || "").trim();
     if (!query) {
       return res.status(400).json({ message: "Missing query" });
     }
-    const data = await yahooFinance.search(query);
-    const results = (data?.quotes || []).slice(0, 10).map((item) => ({
-      symbol: ensureNseSymbol(item.symbol || ""),
-      description: item.shortname || item.longname || item.symbol
-    }));
+    if (query.length < 2) {
+      return res.json({ count: 0, result: [] });
+    }
+    const results = await searchInstruments(query, 15);
     return res.json({ count: results.length, result: results });
   } catch (err) {
     return next(err);
@@ -51,7 +59,11 @@ const searchStocks = async (req, res, next) => {
 
 const getStock = async (req, res, next) => {
   try {
-    const symbol = req.params.symbol;
+    const symbol = ensureNseSymbol(req.params.symbol);
+    const instrument = await findActiveInstrument(symbol);
+    if (!instrument) {
+      return res.status(404).json({ message: "Unsupported NSE equity symbol" });
+    }
     const [quote, profile] = await Promise.all([
       getQuote(symbol),
       getProfile(symbol)
@@ -64,31 +76,32 @@ const getStock = async (req, res, next) => {
 
 const getHistoryByPeriod = async (req, res, next) => {
   try {
-    const symbol = req.params.symbol;
-    const period = req.query.period || "1M";
-
-    const now = Math.floor(Date.now() / 1000);
-    let from = now - 60 * 60 * 24 * 30;
-    let resolution = "D";
-
-    if (period === "1D") {
-      from = now - 60 * 60 * 24;
-      resolution = "15";
-    } else if (period === "1W") {
-      from = now - 60 * 60 * 24 * 7;
-      resolution = "60";
-    } else if (period === "3M") {
-      from = now - 60 * 60 * 24 * 90;
-    } else if (period === "6M") {
-      from = now - 60 * 60 * 24 * 182;
-    } else if (period === "1Y") {
-      from = now - 60 * 60 * 24 * 365;
-    } else if (period === "5Y") {
-      from = now - 60 * 60 * 24 * 365 * 5;
+    const symbol = ensureNseSymbol(req.params.symbol);
+    const instrument = await findActiveInstrument(symbol);
+    if (!instrument) {
+      return res.status(404).json({ message: "Unsupported NSE equity symbol" });
+    }
+    const range = String(req.query.period || req.query.range || "1M").trim().toUpperCase();
+    const config = HISTORY_RANGES[range];
+    if (!config) {
+      return res.status(400).json({ message: "Unsupported history range" });
     }
 
-    const data = await getHistory(symbol, resolution, from, now);
-    const closes = data && data.c ? data.c : [];
+    const period2 = new Date();
+    const period1 = new Date(period2.getTime() - config.days * 24 * 60 * 60 * 1000);
+    const data = await getHistory(symbol, {
+      range,
+      interval: config.interval,
+      period1,
+      period2
+    });
+    if (config.latestSessionOnly && data.candles.length > 0) {
+      const getNseDateKey = (timestamp) =>
+        new Date(timestamp * 1000).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+      const latestDateKey = getNseDateKey(data.candles[data.candles.length - 1].time);
+      data.candles = data.candles.filter((item) => getNseDateKey(item.time) === latestDateKey);
+    }
+    const closes = data.candles.map((item) => item.close);
     const signal = closes.length >= 15 ? getSignal(closes.slice(-30)) : null;
 
     return res.json({ ...data, signal });

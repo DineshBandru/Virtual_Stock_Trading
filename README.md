@@ -17,8 +17,9 @@ Frontend: React 18, Vite, Tailwind CSS, Framer Motion, Recharts, lightweight-cha
 Backend: Node.js, Express, MongoDB, Mongoose, Socket.IO
 
 ## Folder Structure
-- client: React frontend
-- server: Express backend
+- apps/website: React customer-facing trading app
+- apps/admin: React admin console
+- backend: Express API, Socket.IO server, and MongoDB models/services
 
 ## Environment Variables
 Create .env files based on .env.example.
@@ -38,18 +39,26 @@ Client .env.example:
 ## Install & Run
 1. Install root dependencies:
    - npm install
-2. Install server dependencies:
-   - npm --prefix server install
-3. Install client dependencies:
-   - npm --prefix client install
-4. Start dev servers:
+2. Install backend dependencies:
+   - npm --prefix backend install
+3. Install website dependencies:
+   - npm --prefix apps/website install
+4. Install admin dependencies:
+   - npm --prefix apps/admin install
+5. Start dev servers:
    - npm run dev
 
+Local URLs:
+- Website: http://localhost:3000
+- Admin: http://localhost:3001
+- Backend API: http://localhost:5000
+
 ## Scripts
-- npm run dev: Concurrently starts backend and frontend servers.
+- npm run dev: Concurrently starts backend, website, and admin dev servers.
 - npm start: Starts the backend server only.
-- cd client && npm run dev: Starts the Vite frontend in dev mode.
-- node server/seed.js: Seeds database with dummy data.
+- npm --prefix apps/website run dev: Starts the website Vite dev server.
+- npm --prefix apps/admin run dev: Starts the admin Vite dev server.
+- node backend/seed.js: Seeds database with dummy data.
 
 ## API Endpoints
 Auth:
@@ -108,13 +117,13 @@ Admin:
 ## Deployment
 
 ### Frontend (Vercel)
-The client directory contains a vercel.json optimized for Vite SPAs.
-1. Import the repository into Vercel and set the Root Directory to client.
+The apps/website directory contains a vercel.json optimized for Vite SPAs.
+1. Import the repository into Vercel and set the Root Directory to apps/website.
 2. Add necessary frontend Environment Variables (such as VITE_API_URL pointing to the Render backend).
 
 ### Backend (Render)
-The server directory includes a render.yaml blueprint.
-1. Connect Render to the repository and select the server directory as a Web Service.
+The backend directory includes a render.yaml blueprint.
+1. Connect Render to the repository and select the backend directory as a Web Service.
 2. Build Command: npm install, Start Command: node index.js.
 3. Fill missing environment variables inside the Dashboard (MONGO_URI, JWT_SECRET).
 

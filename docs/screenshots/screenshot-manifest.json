@@ -1,0 +1,80 @@
+{
+  "createdAt": "2026-08-07T09:02:35.285Z",
+  "viewport": "1440x900 desktop plus tablet/430/375 responsive checks",
+  "demoUser": "tradeabhyas.demo.202608070901@example.com",
+  "captured": [
+    "01-login.png",
+    "02-register.png",
+    "03-dashboard.png",
+    "04-stock-search.png",
+    "05-stock-detail.png",
+    "06-stock-chart.png",
+    "07-buy-order-ticket.png",
+    "08-sell-order-ticket.png",
+    "09-portfolio.png",
+    "10-positions.png",
+    "11-orders.png",
+    "12-transactions.png",
+    "13-watchlist.png",
+    "14-alerts.png",
+    "15-settings-account.png",
+    "16-competitions.png",
+    "23-mobile-stock-detail.png",
+    "17-admin-login.png",
+    "18-admin-dashboard.png",
+    "19-admin-users.png",
+    "20-admin-orders.png",
+    "21-admin-transactions.png",
+    "22-admin-competitions.png"
+  ],
+  "responsive": {
+    "desktop": {
+      "width": 1440,
+      "overflow": false,
+      "navButton": true,
+      "orderTicket": true
+    },
+    "tablet": {
+      "width": 768,
+      "overflow": false,
+      "navButton": true,
+      "orderTicket": false,
+      "bodyTextLength": 1202
+    },
+    "mobile430": {
+      "width": 430,
+      "overflow": false,
+      "navButton": true,
+      "orderTicket": false,
+      "bodyTextLength": 1202
+    },
+    "mobile375": {
+      "width": 375,
+      "overflow": false,
+      "navButton": true,
+      "orderTicket": true,
+      "bodyTextLength": 1511
+    }
+  },
+  "note": "Screenshots captured from localhost running Trade Abhyas. Passwords/tokens/cookies/devtools were not captured.",
+  "updatedAt": "2026-08-07T09:04:47.040Z",
+  "recaptureReason": "Removed onboarding tour overlay from user screenshots by setting /api/auth/tour.",
+  "updatedScreenshots": [
+    "03-dashboard.png",
+    "04-stock-search.png",
+    "05-stock-detail.png",
+    "06-stock-chart.png",
+    "07-buy-order-ticket.png",
+    "08-sell-order-ticket.png",
+    "09-portfolio.png",
+    "10-positions.png",
+    "11-orders.png",
+    "12-transactions.png",
+    "13-watchlist.png",
+    "14-alerts.png",
+    "15-settings-account.png",
+    "16-competitions.png",
+    "23-mobile-stock-detail.png"
+  ],
+  "recapturedTransactionsAt": "2026-08-07T09:07:07.610Z"
+}

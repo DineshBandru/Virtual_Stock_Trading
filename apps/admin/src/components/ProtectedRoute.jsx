@@ -24,7 +24,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   if (requireAdmin && user.role !== "admin") {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="max-w-lg rounded-2xl border border-red-500/40 bg-red-500/10 p-6 text-center text-red-100">
+        <div className="max-w-lg rounded-lg border border-red-500/40 bg-red-500/10 p-6 text-center text-red-100">
           <h1 className="text-lg font-semibold">Admin access required</h1>
           <p className="mt-3 text-sm text-red-100/80">
             You are signed in, but this account does not have the admin role.

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
@@ -10,6 +10,11 @@ import useStockDetail from "../hooks/useStockDetail";
 
 const StockDetail = () => {
   const { symbol } = useParams();
+  const normalizedSymbol = useMemo(() => {
+    const value = String(symbol || "").trim().toUpperCase();
+    if (!value) return "";
+    return value.endsWith(".NS") ? value : `${value}.NS`;
+  }, [symbol]);
   const [period, setPeriod] = useState("1M");
   const [chartMode, setChartMode] = useState("candles");
 
@@ -24,16 +29,23 @@ const StockDetail = () => {
     changePct,
     loading,
     error: loadError,
+    historyError,
+    historyMeta,
     refresh
-  } = useStockDetail(symbol, period);
+  } = useStockDetail(normalizedSymbol, period);
 
-  const changeClass = changePct >= 0 ? "text-cyan" : "text-red-400";
+  const changeClass = changePct >= 0 ? "text-emerald-400" : "text-red-400";
   const stats = quote
     ? [
-        `Open: ₹${quote.o?.toFixed(2) || "—"}`,
-        `High: ₹${quote.h?.toFixed(2) || "—"}`,
-        `Low: ₹${quote.l?.toFixed(2) || "—"}`,
-        `Volume: ${quote.v?.toLocaleString() || "—"}`
+        { label: "Symbol", value: normalizedSymbol || "N/A" },
+        { label: "Previous Close", value: Number.isFinite(quote.pc) ? `INR ${quote.pc.toFixed(2)}` : "N/A" },
+        { label: "Price Change", value: Number.isFinite(quote.change) ? `INR ${quote.change.toFixed(2)}` : "N/A" },
+        { label: "Market Status", value: quote.marketState || "N/A" },
+        {
+          label: "Quote Updated",
+          value: quote.fetchedAt ? new Date(quote.fetchedAt).toLocaleString() : quote.t ? new Date(quote.t * 1000).toLocaleString() : "N/A"
+        },
+        { label: "Data State", value: quote.stale ? "Stale cached" : quote.cached ? "Cached" : "Fresh" }
       ]
     : [];
 
@@ -44,15 +56,15 @@ const StockDetail = () => {
           title="Stock Detail"
           subtitle="Candlestick view, AI signals, and order execution in one terminal panel."
         />
-        <div className="flex items-center gap-4 rounded-2xl border border-borderGlow/60 bg-panel/70 px-4 py-3">
+        <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#161725] px-4 py-3">
           <div className="flex flex-col">
-            <span className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Live Quote</span>
+            <span className="text-xs font-medium uppercase text-[#A1A1B5]">Live Quote</span>
             <span className="font-mono text-xl text-white">
-              {loading ? <Skeleton className="h-6 w-24" /> : quote?.c ? `₹${quote.c.toFixed(2)}` : "—"}
+              {loading ? <Skeleton className="h-6 w-24" /> : Number.isFinite(quote?.c) ? `INR ${quote.c.toFixed(2)}` : "N/A"}
             </span>
           </div>
-          <span className={`rounded-full border border-borderGlow/60 px-3 py-1 text-xs ${changeClass}`}>
-            {Number.isFinite(changePct) ? `${changePct.toFixed(2)}%` : "—"}
+          <span className={`rounded-2xl border border-white/10 bg-[#080910]/70 px-3 py-1 text-xs ${changeClass}`}>
+            {Number.isFinite(changePct) ? `${changePct.toFixed(2)}%` : "N/A"}
           </span>
         </div>
       </div>
@@ -63,7 +75,7 @@ const StockDetail = () => {
           <button
             type="button"
             onClick={refresh}
-            className="rounded-xl border border-red-300/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-red-100 transition hover:bg-red-500/20"
+            className="rounded-2xl border border-red-300/60 px-4 py-2 text-xs font-semibold uppercase text-red-100 transition hover:bg-red-500/20"
           >
             Retry
           </button>
@@ -72,16 +84,16 @@ const StockDetail = () => {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Company", value: profile?.name || "—" },
-          { label: "Sector", value: profile?.finnhubIndustry || "—" },
+          { label: "Company", value: profile?.name || "N/A" },
+          { label: "Sector", value: profile?.finnhubIndustry || "N/A" },
           {
             label: "Market Cap",
-            value: profile?.marketCapitalization ? `₹${profile.marketCapitalization.toFixed(2)}B` : "—"
+            value: profile?.marketCapitalization ? `INR ${profile.marketCapitalization.toFixed(2)}B` : "N/A"
           },
-          { label: "P/E Ratio", value: profile?.peRatio || "—" }
+          { label: "P/E Ratio", value: profile?.peRatio || "N/A" }
         ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-borderGlow/60 bg-panel/70 px-4 py-3">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">{item.label}</p>
+          <div key={item.label} className="rounded-2xl border border-white/10 bg-[#161725] px-4 py-3">
+            <p className="text-xs font-medium uppercase text-[#A1A1B5]">{item.label}</p>
             <div className="mt-2">
               {loading ? <Skeleton className="h-4 w-28" /> : <p className="font-mono text-sm text-white">{item.value}</p>}
             </div>
@@ -89,51 +101,52 @@ const StockDetail = () => {
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <GlassPanel className="min-h-[360px]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[2fr_1fr]">
+        <GlassPanel className="min-h-[360px] min-w-0">
           <CandlestickChart
             data={candles}
             height={360}
             loading={loading}
-            error={loadError}
+            error={historyError}
             title="TradingView-Style Chart"
-            symbol={symbol?.toUpperCase()}
+            symbol={normalizedSymbol}
             quote={quote}
             period={period}
+            historyMeta={historyMeta}
             mode={chartMode}
             onModeChange={setChartMode}
             onPeriodChange={setPeriod}
           />
 
           <div className="mt-6">
-            <h4 className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Compare Symbol</h4>
+            <h4 className="mb-2 text-xs font-medium uppercase text-[#A1A1B5]">Compare Symbol</h4>
             <div className="flex gap-2">
               <input
                 type="text"
                 placeholder="Enter NSE Symbol..."
-                className="flex-1 rounded-xl border border-borderGlow/50 bg-panel/50 px-4 py-2 text-sm text-white outline-none"
+                className="flex-1 rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-2 text-sm text-white outline-none focus:border-cyan"
               />
-              <button className="rounded-xl border border-cyan/50 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/20">
+              <button className="rounded-2xl border border-cyan/50 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/20">
                 Compare
               </button>
             </div>
           </div>
         </GlassPanel>
 
-        <div className="flex flex-col gap-6">
-          <OrderTicket symbol={symbol?.toUpperCase()} quote={quote} loading={loading} onPlaced={refresh} />
+        <div className="flex min-w-0 flex-col gap-6">
+          <OrderTicket symbol={normalizedSymbol} quote={quote} loading={loading} onPlaced={refresh} />
 
           <GlassPanel>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+            <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">
               AI Signal
             </h3>
-            <p className="mt-4 text-sm text-slate-300">
-              {signal ? `${signal.signal} • ${signal.confidence}% confidence` : "Signal will appear once history is loaded."}
+            <p className="mt-4 text-sm text-[#C2C4D2]">
+              {signal ? `${signal.signal} - ${signal.confidence}% confidence` : "Signal will appear once history is loaded."}
             </p>
-            {signal ? <p className="mt-2 text-xs text-slate-400">{signal.explanation}</p> : null}
+            {signal ? <p className="mt-2 text-xs text-[#A1A1B5]">{signal.explanation}</p> : null}
             <Link
               to="/orders"
-              className="mt-4 inline-flex rounded-xl border border-borderGlow/60 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+              className="mt-4 inline-flex rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
             >
               View Orders
             </Link>
@@ -142,20 +155,23 @@ const StockDetail = () => {
       </div>
 
       <MarketDepthPanel
-        symbol={symbol?.toUpperCase()}
+        symbol={normalizedSymbol}
         depth={marketDepth}
         loading={depthLoading}
         error={depthError}
       />
 
       <GlassPanel>
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">Key Stats</h3>
+        <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">Key Stats</h3>
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={`stat-${index}`} className="rounded-xl border border-borderGlow/60 bg-base/70 p-4 text-xs text-slate-400">
-              {quote ? stats[index] : "Loading quote..."}
+          {stats.map((item, index) => {
+            return (
+            <div key={`stat-${index}`} className="rounded-2xl border border-white/10 bg-[#080910]/70 p-4">
+              <p className="text-xs font-medium uppercase text-[#A1A1B5]">{item?.label || "Quote"}</p>
+              <p className="mt-2 font-mono text-sm text-white">{quote ? item?.value : "Loading quote..."}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </GlassPanel>
     </div>

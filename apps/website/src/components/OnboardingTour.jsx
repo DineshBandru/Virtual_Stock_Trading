@@ -12,7 +12,7 @@ const OnboardingTour = () => {
       const driverObj = driver({
         showProgress: true,
         steps: [
-          { popover: { title: "Welcome to VSTP", description: "Let's take a quick tour of your new neon trading terminal." } },
+          { popover: { title: "Welcome to Trade Abhyas", description: "Let's take a quick tour of your new trading terminal." } },
           { element: ".ticker-band", popover: { title: "Market Pulse", description: "Live updates and signals run continuously here.", side: "bottom", align: "start" } },
           { element: ".dashboard-portfolio-card", popover: { title: "Your Portfolio", description: "Track your balance, holdings, and daily PnL.", side: "right", align: "start" } },
           { element: ".dashboard-search", popover: { title: "Search Stocks", description: "Find NSE Indian stocks directly here.", side: "bottom", align: "start" } },

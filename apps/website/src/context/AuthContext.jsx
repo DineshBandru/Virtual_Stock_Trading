@@ -3,14 +3,26 @@ import api from "../utils/api";
 
 export const AuthContext = createContext(null);
 
+let restoreSessionPromise = null;
+
+const restoreSession = async () => {
+  const response = await api.get("/api/auth/me");
+  return response.data;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchMe = useCallback(async () => {
     try {
-      const response = await api.get("/api/auth/me");
-      setUser(response.data);
+      if (!restoreSessionPromise) {
+        restoreSessionPromise = restoreSession().finally(() => {
+          restoreSessionPromise = null;
+        });
+      }
+      const restoredUser = await restoreSessionPromise;
+      setUser(restoredUser);
     } catch (err) {
       setUser(null);
     } finally {
@@ -21,6 +33,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     fetchMe();
   }, [fetchMe]);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setUser(null);
+      setLoading(false);
+    };
+
+    window.addEventListener("auth:session-expired", handleSessionExpired);
+    return () => window.removeEventListener("auth:session-expired", handleSessionExpired);
+  }, []);
 
   const login = async (payload) => {
     const response = await api.post("/api/auth/login", payload);
@@ -35,12 +57,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await api.post("/api/auth/logout");
+    await api.post("/api/auth/logout", null, { skipAuthRefresh: true }).catch(() => {});
     setUser(null);
   };
 
+  const updateUser = (nextUser) => {
+    setUser((current) => ({ ...(current || {}), ...(nextUser || {}) }));
+  };
+
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, refresh: fetchMe }),
+    () => ({ user, loading, login, register, logout, refresh: fetchMe, updateUser }),
     [user, loading, fetchMe]
   );
 

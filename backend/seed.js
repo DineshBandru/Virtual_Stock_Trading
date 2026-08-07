@@ -7,7 +7,7 @@ const Competition = require('./models/Competition');
 const Portfolio = require('./models/Portfolio');
 const path = require('path');
 
-dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const usersData = [
   { name: 'Seed User 1', email: 'seed1@example.com', password: 'Password123!', amount: 100000, hasSeenTour: true },

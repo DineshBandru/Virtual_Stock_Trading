@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const speakeasy = require('speakeasy');
 const User = require("../models/User");
 const RefreshToken = require('../models/RefreshToken');
+const { getCookieOptions } = require("../config/env");
+const { getEmailProviderName, sendPasswordResetEmail } = require("../services/emailService");
 
 const createAccessToken = (user) =>
   jwt.sign({ id: user._id.toString(), role: user.role, tokenVersion: user.tokenVersion || 0 }, process.env.JWT_SECRET, {
@@ -21,15 +23,56 @@ const createRefreshTokenDoc = async (userId, ip) => {
   return { rawToken: token, doc };
 };
 
-const setTokensCookies = (res, accessToken, refreshRawToken) => {
-  const secure = process.env.NODE_ENV === 'production';
-  res.cookie('token', accessToken, { httpOnly: true, sameSite: 'lax', secure, maxAge: 15 * 60 * 1000 });
-  res.cookie('refreshToken', refreshRawToken, { httpOnly: true, sameSite: 'lax', secure, maxAge: 7 * 24 * 60 * 60 * 1000 });
+const createPasswordResetToken = () => crypto.randomBytes(32).toString('hex');
+
+const getClientResetBaseUrl = () => {
+  const origins = (process.env.CLIENT_URL || 'http://localhost:3010')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return origins[0] || 'http://localhost:3010';
 };
 
+const buildPasswordResetUrl = (resetToken) => {
+  const url = new URL("/reset-password", getClientResetBaseUrl());
+  url.searchParams.set("token", resetToken);
+  return url.toString();
+};
+
+const setTokensCookies = (res, accessToken, refreshRawToken) => {
+  res.cookie('token', accessToken, getCookieOptions(15 * 60 * 1000));
+  res.cookie('refreshToken', refreshRawToken, getCookieOptions(7 * 24 * 60 * 60 * 1000));
+};
+
+const USER_SAFE_FIELDS = "name email role balance avatar phone tradingExperience riskProfile tradingStyle notificationPreferences hasSeenTour createdAt updatedAt";
+
+const toUserPayload = (user) => ({
+  id: user._id,
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  balance: user.balance,
+  avatar: user.avatar,
+  phone: user.phone || "",
+  tradingExperience: user.tradingExperience || "",
+  riskProfile: user.riskProfile || "",
+  tradingStyle: user.tradingStyle || "",
+  notificationPreferences: {
+    orderUpdates: user.notificationPreferences?.orderUpdates ?? true,
+    priceAlerts: user.notificationPreferences?.priceAlerts ?? true,
+    portfolioDigest: user.notificationPreferences?.portfolioDigest ?? false,
+    productUpdates: user.notificationPreferences?.productUpdates ?? false
+  },
+  hasSeenTour: user.hasSeenTour,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt
+});
+
 const clearAuthCookies = (res) => {
-  res.clearCookie('token');
-  res.clearCookie('refreshToken');
+  const { maxAge, ...options } = getCookieOptions(0);
+  res.clearCookie('token', options);
+  res.clearCookie('refreshToken', options);
 };
 
 const register = async (req, res, next) => {
@@ -49,15 +92,7 @@ const register = async (req, res, next) => {
     const { rawToken, doc } = await createRefreshTokenDoc(user._id, req.ip);
     setTokensCookies(res, accessToken, rawToken);
 
-    return res.status(201).json({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      balance: user.balance,
-      avatar: user.avatar,
-      hasSeenTour: user.hasSeenTour
-    });
+    return res.status(201).json(toUserPayload(user));
   } catch (err) {
     return next(err);
   }
@@ -105,15 +140,88 @@ const login = async (req, res, next) => {
     const accessToken = createAccessToken(user);
     const { rawToken, doc } = await createRefreshTokenDoc(user._id, req.ip);
     setTokensCookies(res, accessToken, rawToken);
+    return res.json(toUserPayload(user));
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const genericMessage = 'If an account exists for that email, a password reset link has been sent.';
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.json({ message: genericMessage });
+    }
+
+    const resetToken = createPasswordResetToken();
+    user.passwordResetTokenHash = hashToken(resetToken);
+    user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
+    user.passwordResetUsedAt = undefined;
+    await user.save();
+
+    const resetLink = buildPasswordResetUrl(resetToken);
+    const includeDevelopmentResetLink = process.env.NODE_ENV !== 'production';
+
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetLink
+      });
+    } catch (emailError) {
+      user.passwordResetTokenHash = undefined;
+      user.passwordResetExpires = undefined;
+      user.passwordResetUsedAt = undefined;
+      await user.save();
+      console.error("Password reset email delivery failed", {
+        provider: getEmailProviderName(),
+        status: emailError.status || null,
+        message: emailError.message
+      });
+      return res.json({ message: genericMessage });
+    }
+
     return res.json({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      balance: user.balance,
-      avatar: user.avatar,
-      hasSeenTour: user.hasSeenTour
+      message: genericMessage,
+      ...(includeDevelopmentResetLink ? { resetLink, resetToken } : {})
     });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token, password } = req.body;
+    const tokenHash = hashToken(token);
+    const user = await User.findOne({
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpires: { $gt: new Date() },
+      passwordResetUsedAt: { $exists: false }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired password reset token' });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.passwordResetUsedAt = new Date();
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetExpires = undefined;
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    await RefreshToken.updateMany(
+      { userId: user._id, revoked: false },
+      { revoked: true, revokedAt: new Date() }
+    );
+
+    return res.json({ message: 'Password has been reset successfully' });
   } catch (err) {
     return next(err);
   }
@@ -159,7 +267,7 @@ const refresh = async (req, res, next) => {
 
     const accessToken = createAccessToken(user);
     setTokensCookies(res, accessToken, newRaw);
-    return res.json({ id: user._id, name: user.name, email: user.email, role: user.role });
+    return res.json(toUserPayload(user));
   } catch (err) {
     return next(err);
   }
@@ -184,7 +292,7 @@ const logoutAll = async (req, res, next) => {
 
 const me = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select(USER_SAFE_FIELDS);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -210,4 +318,126 @@ const setTourSeen = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, logout, me, setTourSeen, refresh, logoutAll };
+const updateProfile = async (req, res, next) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const phone = String(req.body.phone || "").trim();
+    const tradingExperience = String(req.body.tradingExperience || "").trim();
+    const riskProfile = String(req.body.riskProfile || "").trim();
+    const tradingStyle = String(req.body.tradingStyle || "").trim();
+    const notificationPreferences = req.body.notificationPreferences || {};
+
+    if (!name) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    if (phone && !/^[0-9+\-\s()]{7,20}$/.test(phone)) {
+      return res.status(400).json({ message: "Enter a valid phone number" });
+    }
+
+    const allowedExperience = ["", "beginner", "intermediate", "advanced", "professional"];
+    const allowedRisk = ["", "conservative", "moderate", "aggressive"];
+    const allowedStyle = ["", "intraday", "swing", "long_term", "mixed"];
+    if (!allowedExperience.includes(tradingExperience)) {
+      return res.status(400).json({ message: "Unsupported trading experience" });
+    }
+    if (!allowedRisk.includes(riskProfile)) {
+      return res.status(400).json({ message: "Unsupported risk profile" });
+    }
+    if (!allowedStyle.includes(tradingStyle)) {
+      return res.status(400).json({ message: "Unsupported trading style" });
+    }
+
+    const existing = await User.findOne({ email, _id: { $ne: req.user.id } }).select("_id");
+    if (existing) {
+      return res.status(409).json({ message: "Email already registered" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        name,
+        email,
+        phone,
+        tradingExperience,
+        riskProfile,
+        tradingStyle,
+        notificationPreferences: {
+          orderUpdates: Boolean(notificationPreferences.orderUpdates),
+          priceAlerts: Boolean(notificationPreferences.priceAlerts),
+          portfolioDigest: Boolean(notificationPreferences.portfolioDigest),
+          productUpdates: Boolean(notificationPreferences.productUpdates)
+        }
+      },
+      {
+        new: true,
+        select: USER_SAFE_FIELDS
+      }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json(toUserPayload(user));
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: "All password fields are required" });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "New password confirmation does not match" });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: "New password must be different from current password" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    await user.save();
+
+    await RefreshToken.updateMany(
+      { userId: user._id, revoked: false },
+      { revoked: true, revokedAt: new Date() }
+    );
+
+    clearAuthCookies(res);
+    return res.json({ message: "Password changed successfully. Please sign in again." });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+module.exports = {
+  register,
+  login,
+  logout,
+  me,
+  setTourSeen,
+  refresh,
+  logoutAll,
+  forgotPassword,
+  resetPassword,
+  updateProfile,
+  changePassword
+};

@@ -25,7 +25,9 @@ import { getApiErrorMessage } from "../utils/errorMessage";
 import socket from "../utils/socket";
 
 const formatCurrency = (value) => {
-  const number = Number(value) || 0;
+  if (value === null || value === undefined || value === "") return "Unavailable";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "Unavailable";
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
@@ -34,7 +36,9 @@ const formatCurrency = (value) => {
 };
 
 const formatPercent = (value) => {
-  const number = Number(value) || 0;
+  if (value === null || value === undefined || value === "") return "Unavailable";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "Unavailable";
   return `${number >= 0 ? "+" : ""}${number.toFixed(2)}%`;
 };
 
@@ -43,7 +47,7 @@ const formatQty = (value) => {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(number);
 };
 
-const summaryTone = (value) => (value >= 0 ? "text-emerald-300" : "text-red-300");
+const summaryTone = (value) => (value >= 0 ? "text-emerald-400" : "text-red-400");
 
 const LoadingCard = () => (
   <GlassPanel className="min-h-[126px]">
@@ -54,9 +58,9 @@ const LoadingCard = () => (
 );
 
 const LoadingTable = () => (
-  <div className="space-y-3 rounded-2xl border border-borderGlow/50 bg-panel/60 p-4">
+  <div className="space-y-3 rounded-2xl border border-white/10 bg-[#121320] p-4">
     {Array.from({ length: 5 }).map((_, index) => (
-      <div key={index} className="grid gap-3 rounded-2xl border border-borderGlow/40 bg-base/60 p-4 xl:grid-cols-8">
+      <div key={index} className="grid gap-3 rounded-2xl border border-white/10 bg-[#080910] p-4 xl:grid-cols-8">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-20" />
@@ -74,10 +78,10 @@ const TabButton = ({ active, children, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+    className={`rounded-2xl border px-4 py-2 text-xs font-semibold transition ${
       active
         ? "border-cyan/50 bg-cyan/10 text-cyan"
-        : "border-borderGlow/60 bg-base/60 text-slate-400 hover:border-cyan/30 hover:text-slate-200"
+        : "border-white/10 bg-[#080910] text-[#A1A1B5] hover:border-cyan/30 hover:text-[#E7E9F3]"
     }`}
   >
     {children}
@@ -86,21 +90,20 @@ const TabButton = ({ active, children, onClick }) => (
 
 const PositionPill = ({ children, tone = "default" }) => {
   const tones = {
-    default: "border-borderGlow/60 bg-base/70 text-slate-300",
-    success: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-    danger: "border-red-400/30 bg-red-400/10 text-red-200",
-    warning: "border-amber-400/30 bg-amber-400/10 text-amber-200"
+    default: "border-white/10 bg-[#080910] text-[#C2C4D2]",
+    success: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+    danger: "border-red-500/30 bg-red-500/10 text-red-200",
+    warning: "border-slate-600 bg-[#1A1B2B] text-[#C2C4D2]"
   };
 
   return (
-    <span className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] ${tones[tone] || tones.default}`}>
+    <span className={`rounded-2xl border px-2.5 py-1 text-[10px] font-semibold ${tones[tone] || tones.default}`}>
       {children}
     </span>
   );
 };
 
 const Positions = () => {
-  const prices = useLivePrices();
   const { push } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -111,6 +114,11 @@ const Positions = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [sortConfig, setSortConfig] = useState({ key: "symbol", direction: "asc" });
+  const subscribedSymbols = useMemo(
+    () => positionsData.openPositions.map((position) => position.symbol).filter(Boolean),
+    [positionsData.openPositions]
+  );
+  const prices = useLivePrices(subscribedSymbols);
 
   const loadPositions = useCallback(async ({ showRefreshing = false } = {}) => {
     try {
@@ -141,43 +149,41 @@ const Positions = () => {
   }, [loadPositions]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      loadPositions({ showRefreshing: true });
-    }, 15000);
-
-    return () => window.clearInterval(timer);
-  }, [loadPositions]);
-
-  useEffect(() => {
     const handleOrdersUpdate = () => {
       loadPositions({ showRefreshing: true });
     };
 
-    const handlePricesUpdate = () => {
-      if (!loading) {
-        setPositionsData((current) => ({ ...current }));
-      }
-    };
-
     socket.on("orders:update", handleOrdersUpdate);
-    socket.on("prices:update", handlePricesUpdate);
+    socket.on("order-update", handleOrdersUpdate);
+    socket.on("portfolio-update", handleOrdersUpdate);
+    socket.on("position-update", handleOrdersUpdate);
+    socket.on("transaction-update", handleOrdersUpdate);
+    socket.on("connect", handleOrdersUpdate);
 
     return () => {
       socket.off("orders:update", handleOrdersUpdate);
-      socket.off("prices:update", handlePricesUpdate);
+      socket.off("order-update", handleOrdersUpdate);
+      socket.off("portfolio-update", handleOrdersUpdate);
+      socket.off("position-update", handleOrdersUpdate);
+      socket.off("transaction-update", handleOrdersUpdate);
+      socket.off("connect", handleOrdersUpdate);
     };
-  }, [loadPositions, loading]);
+  }, [loadPositions]);
 
   const baseRows = useMemo(() => {
     const source = tab === "open" ? positionsData.openPositions : positionsData.closedPositions;
     return source.map((position) => {
       const livePrice = Number(prices[position.symbol]?.c);
-      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : Number(position.currentPrice) || 0;
-      const currentValue = currentPrice * Number(position.netQty || 0);
+      const fallbackPrice = Number(position.currentPrice);
+      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
+        ? true
+        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
+      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
+      const currentValue = hasPrice ? currentPrice * Number(position.netQty || 0) : null;
       const investedValue = Number(position.investedValue) || 0;
-      const unrealizedPnL = Number(position.netQty || 0) > 0 ? currentValue - investedValue : 0;
+      const unrealizedPnL = Number(position.netQty || 0) > 0 && hasPrice ? currentValue - investedValue : Number(position.netQty || 0) > 0 ? null : 0;
       const realizedPnL = Number(position.realizedPnL) || 0;
-      const totalPnL = realizedPnL + unrealizedPnL;
+      const totalPnL = realizedPnL + (Number(unrealizedPnL) || 0);
       const pnlBase = investedValue > 0 ? investedValue : Number(position.buyQty || 0) * (Number(position.averageBuyPrice) || 0);
       const pnlPct = pnlBase > 0 ? (totalPnL / pnlBase) * 100 : 0;
 
@@ -187,7 +193,8 @@ const Positions = () => {
         currentValue,
         unrealizedPnL,
         totalPnL,
-        pnlPct
+        pnlPct,
+        valuationAvailable: hasPrice
       };
     });
   }, [prices, positionsData.closedPositions, positionsData.openPositions, tab]);
@@ -231,7 +238,22 @@ const Positions = () => {
   }, [filteredRows, sortConfig]);
 
   const summary = useMemo(() => {
-    const openPositions = positionsData.openPositions || [];
+    const openPositions = (positionsData.openPositions || []).map((position) => {
+      const livePrice = Number(prices[position.symbol]?.price ?? prices[position.symbol]?.c);
+      const fallbackPrice = Number(position.currentPrice);
+      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
+        ? true
+        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
+      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
+      const currentValue = hasPrice ? currentPrice * Number(position.netQty || 0) : null;
+      const investedValue = Number(position.investedValue) || 0;
+      return {
+        ...position,
+        currentPrice,
+        currentValue,
+        unrealizedPnL: hasPrice ? currentValue - investedValue : null
+      };
+    });
     const totalOpenPnL = openPositions.reduce((sum, position) => sum + (Number(position.unrealizedPnL) || 0), 0);
     const totalRealizedPnL = Number(positionsData.summary?.totalRealizedPnL) || 0;
     const totalPositions = Number(positionsData.summary?.totalPositions) || 0;
@@ -287,7 +309,7 @@ const Positions = () => {
         tone: "danger"
       }
     ];
-  }, [positionsData.summary, positionsData.openPositions]);
+  }, [positionsData.summary, positionsData.openPositions, prices]);
 
   const filterOptions = tab === "open"
     ? [
@@ -306,7 +328,7 @@ const Positions = () => {
 
   const renderSortIcon = (key) => {
     if (sortConfig.key !== key) {
-      return <ArrowUpDown className="h-4 w-4 text-slate-500" />;
+      return <ArrowUpDown className="h-4 w-4 text-[#6F7487]" />;
     }
 
     return sortConfig.direction === "asc" ? (
@@ -337,7 +359,7 @@ const Positions = () => {
         <button
           type="button"
           onClick={() => loadPositions({ showRefreshing: true })}
-          className="inline-flex items-center gap-2 rounded-full border border-borderGlow/60 bg-panel/70 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan/40 hover:text-cyan"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#121320] px-4 py-2 text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
         >
           <RefreshCcw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -357,13 +379,13 @@ const Positions = () => {
             <GlassPanel key={item.label} className="min-h-[126px]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">{item.label}</p>
+                  <p className="text-[11px] uppercase text-[#A1A1B5]">{item.label}</p>
                   <p className={`mt-3 text-2xl font-semibold ${typeof item.value === "number" ? summaryTone(item.value) : "text-white"}`}>
                     {typeof item.value === "number" ? formatCurrency(item.value) : item.value}
                   </p>
-                  <p className="mt-2 text-xs text-slate-400">{item.detail}</p>
+                  <p className="mt-2 text-xs text-[#A1A1B5]">{item.detail}</p>
                 </div>
-                <span className={`rounded-2xl border p-3 ${item.tone === "success" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : item.tone === "danger" ? "border-red-400/30 bg-red-400/10 text-red-200" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>
+                <span className={`rounded-2xl border p-3 ${item.tone === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : item.tone === "danger" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/10 bg-[#1A1B2B] text-[#C2C4D2]"}`}>
                   <Icon className="h-5 w-5" />
                 </span>
               </div>
@@ -378,34 +400,34 @@ const Positions = () => {
             <TabButton active={tab === "open"} onClick={() => setTab("open")}>Open Positions</TabButton>
             <TabButton active={tab === "closed"} onClick={() => setTab("closed")}>Closed Positions</TabButton>
           </div>
-          <div className="rounded-full border border-borderGlow/60 bg-base/60 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+          <div className="rounded-full border border-white/10 bg-[#080910] px-3 py-1 text-[11px] uppercase text-[#A1A1B5]">
             {tab === "open" ? `${positionsData.openPositions.length} open` : `${positionsData.closedPositions.length} closed`}
           </div>
         </div>
 
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto] xl:items-center">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6F7487]" />
             <input
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search symbol or company"
-              className="w-full rounded-2xl border border-borderGlow/60 bg-panel/70 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan/70"
+              className="w-full rounded-2xl border border-white/10 bg-[#121320] py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-[#6F7487] focus:border-cyan/70"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Filter className="h-4 w-4 text-slate-500" />
+            <Filter className="h-4 w-4 text-[#6F7487]" />
             {filterOptions.map((item) => (
               <button
                 key={item.value}
                 type="button"
                 onClick={() => setFilter(item.value)}
-                className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${
                   filter === item.value
                     ? "border-cyan/50 bg-cyan/10 text-cyan"
-                    : "border-borderGlow/60 bg-base/60 text-slate-400 hover:border-cyan/30 hover:text-slate-200"
+                    : "border-white/10 bg-[#080910] text-[#A1A1B5] hover:border-cyan/30 hover:text-[#E7E9F3]"
                 }`}
               >
                 {item.label}
@@ -420,7 +442,7 @@ const Positions = () => {
               setFilter("all");
               setSortConfig({ key: "symbol", direction: "asc" });
             }}
-            className="rounded-full border border-borderGlow/60 bg-base/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 transition hover:border-cyan/30 hover:text-slate-200"
+            className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-2 text-xs font-semibold text-[#A1A1B5] transition hover:border-cyan/30 hover:text-[#E7E9F3]"
           >
             Reset
           </button>
@@ -429,22 +451,22 @@ const Positions = () => {
         {loading ? (
           <LoadingTable />
         ) : sortedRows.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-cyan/30 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.12),_transparent_45%),linear-gradient(180deg,rgba(15,23,42,0.65),rgba(15,23,42,0.35))] p-8 md:p-10">
-            <p className="text-[11px] uppercase tracking-[0.3em] text-cyan/70">{tab === "open" ? "No Open Positions" : "No Closed Positions"}</p>
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910] p-8 md:p-10">
+            <p className="text-xs font-medium text-[#A1A1B5]">{tab === "open" ? "No open positions" : "No closed positions"}</p>
             <h3 className="mt-4 text-2xl font-semibold text-white">{emptyMessage}</h3>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#C2C4D2]">
               Use the OMS to place orders and let completed trades flow into this view automatically.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 to="/"
-                className="rounded-full bg-cyan px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100"
+                className="rounded-2xl bg-cyan px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100"
               >
                 Go to Dashboard
               </Link>
               <Link
                 to="/orders"
-                className="rounded-full border border-borderGlow/60 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/5"
+                className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-[#E7E9F3] transition hover:bg-white/5"
               >
                 View Orders
               </Link>
@@ -452,10 +474,10 @@ const Positions = () => {
           </div>
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-2xl border border-borderGlow/50 bg-panel/60 xl:block">
+            <div className="hidden overflow-hidden rounded-2xl border border-white/10 bg-[#121320] xl:block">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-borderGlow/50 text-left">
-                  <thead className="bg-base/60 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                <table className="min-w-full divide-y divide-white/10 text-left">
+                  <thead className="bg-[#080910] text-[11px] uppercase text-[#A1A1B5]">
                     <tr>
                       <th className="px-4 py-4">
                         <button type="button" onClick={() => toggleSort("symbol")} className="inline-flex items-center gap-2">
@@ -498,11 +520,11 @@ const Positions = () => {
                         </button>
                       </th>
                       <th className="px-4 py-4">
-                        <span className="text-[11px] uppercase tracking-[0.24em]">Actions</span>
+                        <span className="text-[11px] uppercase">Actions</span>
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-borderGlow/30">
+                  <tbody className="divide-y divide-white/10">
                     {sortedRows.map((row) => {
                       const isProfit = row.totalPnL >= 0;
                       return (
@@ -517,18 +539,18 @@ const Positions = () => {
                                   {row.positionType.replace("_", " ")}
                                 </PositionPill>
                               </div>
-                              <p className="text-xs text-slate-500">{row.companyName}</p>
+                              <p className="text-xs text-[#6F7487]">{row.companyName}</p>
                             </div>
                           </td>
-                          <td className="px-4 py-4 font-mono text-sm text-slate-200">{formatQty(row.netQty)}</td>
-                          <td className="px-4 py-4 font-mono text-sm text-slate-200">{formatCurrency(row.averageBuyPrice)}</td>
-                          <td className="px-4 py-4 font-mono text-sm text-slate-200">{formatCurrency(row.currentPrice)}</td>
-                          <td className="px-4 py-4 font-mono text-sm text-slate-200">{formatCurrency(row.investedValue)}</td>
-                          <td className="px-4 py-4 font-mono text-sm text-slate-200">{formatCurrency(row.currentValue)}</td>
-                          <td className={`px-4 py-4 font-mono text-sm ${isProfit ? "text-emerald-300" : "text-red-300"}`}>
+                          <td className="px-4 py-4 font-mono text-sm text-[#E7E9F3]">{formatQty(row.netQty)}</td>
+                          <td className="px-4 py-4 font-mono text-sm text-[#E7E9F3]">{formatCurrency(row.averageBuyPrice)}</td>
+                          <td className="px-4 py-4 font-mono text-sm text-[#E7E9F3]">{formatCurrency(row.currentPrice)}</td>
+                          <td className="px-4 py-4 font-mono text-sm text-[#E7E9F3]">{formatCurrency(row.investedValue)}</td>
+                          <td className="px-4 py-4 font-mono text-sm text-[#E7E9F3]">{formatCurrency(row.currentValue)}</td>
+                          <td className={`px-4 py-4 font-mono text-sm ${isProfit ? "text-emerald-400" : "text-red-400"}`}>
                             {formatCurrency(row.totalPnL)}
                           </td>
-                          <td className={`px-4 py-4 font-mono text-sm ${isProfit ? "text-emerald-300" : "text-red-300"}`}>
+                          <td className={`px-4 py-4 font-mono text-sm ${isProfit ? "text-emerald-400" : "text-red-400"}`}>
                             {formatPercent(row.pnlPct)}
                           </td>
                           <td className="px-4 py-4">
@@ -536,7 +558,7 @@ const Positions = () => {
                               <button
                                 type="button"
                                 onClick={() => navigate(`/stocks/${row.symbol}`)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-cyan/50 bg-cyan/10 px-3 py-2 text-xs font-semibold text-cyan transition hover:bg-cyan/20"
+                                className="inline-flex items-center gap-1 rounded-2xl border border-cyan/50 bg-cyan/10 px-3 py-2 text-xs font-semibold text-cyan transition hover:bg-cyan/20"
                               >
                                 <Plus className="h-3.5 w-3.5" />
                                 Buy
@@ -545,7 +567,7 @@ const Positions = () => {
                                 type="button"
                                 onClick={() => navigate(`/stocks/${row.symbol}`)}
                                 disabled={row.netQty === 0}
-                                className="inline-flex items-center gap-1 rounded-lg border border-red-400/50 bg-red-400/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-1 rounded-2xl border border-red-400/50 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <Minus className="h-3.5 w-3.5" />
                                 Sell
@@ -564,7 +586,7 @@ const Positions = () => {
               {sortedRows.map((row) => {
                 const isProfit = row.totalPnL >= 0;
                 return (
-                  <div key={row.symbol} className="rounded-2xl border border-borderGlow/50 bg-panel/60 p-4">
+                  <div key={row.symbol} className="rounded-2xl border border-white/10 bg-[#121320] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -575,38 +597,38 @@ const Positions = () => {
                             {row.positionType.replace("_", " ")}
                           </PositionPill>
                         </div>
-                        <p className="mt-1 text-sm text-slate-400">{row.companyName}</p>
+                        <p className="mt-1 text-sm text-[#A1A1B5]">{row.companyName}</p>
                       </div>
-                      <div className={`text-right ${isProfit ? "text-emerald-300" : "text-red-300"}`}>
+                      <div className={`text-right ${isProfit ? "text-emerald-400" : "text-red-400"}`}>
                         <p className="font-mono text-lg font-semibold text-white">{formatCurrency(row.totalPnL)}</p>
                         <p className="text-xs font-medium">{formatPercent(row.pnlPct)}</p>
                       </div>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-400">
-                      <div className="rounded-2xl border border-borderGlow/40 bg-base/60 p-3">
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-[#A1A1B5]">
+                      <div className="rounded-2xl border border-white/10 bg-[#080910] p-3">
                         <p>Qty</p>
                         <p className="mt-1 font-mono text-sm text-white">{formatQty(row.netQty)}</p>
                       </div>
-                      <div className="rounded-2xl border border-borderGlow/40 bg-base/60 p-3">
+                      <div className="rounded-2xl border border-white/10 bg-[#080910] p-3">
                         <p>Avg Price</p>
                         <p className="mt-1 font-mono text-sm text-white">{formatCurrency(row.averageBuyPrice)}</p>
                       </div>
-                      <div className="rounded-2xl border border-borderGlow/40 bg-base/60 p-3">
+                      <div className="rounded-2xl border border-white/10 bg-[#080910] p-3">
                         <p>Current Price</p>
                         <p className="mt-1 font-mono text-sm text-white">{formatCurrency(row.currentPrice)}</p>
                       </div>
-                      <div className="rounded-2xl border border-borderGlow/40 bg-base/60 p-3">
+                      <div className="rounded-2xl border border-white/10 bg-[#080910] p-3">
                         <p>Invested</p>
                         <p className="mt-1 font-mono text-sm text-white">{formatCurrency(row.investedValue)}</p>
                       </div>
-                      <div className="rounded-2xl border border-borderGlow/40 bg-base/60 p-3">
+                      <div className="rounded-2xl border border-white/10 bg-[#080910] p-3">
                         <p>Current Value</p>
                         <p className="mt-1 font-mono text-sm text-white">{formatCurrency(row.currentValue)}</p>
                       </div>
-                      <div className="rounded-2xl border border-borderGlow/40 bg-base/60 p-3">
+                      <div className="rounded-2xl border border-white/10 bg-[#080910] p-3">
                         <p>Direction</p>
-                        <p className={`mt-1 font-mono text-sm ${isProfit ? "text-emerald-300" : "text-red-300"}`}>
+                        <p className={`mt-1 font-mono text-sm ${isProfit ? "text-emerald-400" : "text-red-400"}`}>
                           {row.totalPnL >= 0 ? "Profit" : "Loss"}
                         </p>
                       </div>
@@ -615,7 +637,7 @@ const Positions = () => {
                       <button
                         type="button"
                         onClick={() => navigate(`/stocks/${row.symbol}`)}
-                        className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-cyan-400/50 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
+                                className="flex-1 inline-flex items-center justify-center gap-1 rounded-2xl border border-cyan/40 bg-cyan/10 px-3 py-2 text-xs font-semibold text-cyan transition hover:bg-cyan/20"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         Buy
@@ -624,7 +646,7 @@ const Positions = () => {
                         type="button"
                         onClick={() => navigate(`/stocks/${row.symbol}`)}
                         disabled={row.netQty === 0}
-                        className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg border border-red-400/50 bg-red-400/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 inline-flex items-center justify-center gap-1 rounded-2xl border border-red-400/50 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Minus className="h-3.5 w-3.5" />
                         Sell

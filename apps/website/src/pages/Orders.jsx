@@ -28,15 +28,16 @@ const formatDate = (value) => {
 };
 
 const badgeTone = {
-  Pending: "text-amber-300 border-amber-400/40 bg-amber-400/10",
-  Executed: "text-cyan-300 border-cyan-400/40 bg-cyan-400/10",
-  Cancelled: "text-slate-300 border-borderGlow/60 bg-base/70",
-  Rejected: "text-red-300 border-red-400/40 bg-red-400/10"
+  Pending: "text-[#C2C4D2] border-white/10 bg-[#1A1B2B]",
+  Triggered: "text-amber-300 border-amber-500/30 bg-amber-500/10",
+  Executed: "text-cyan border-cyan/30 bg-cyan/10",
+  Cancelled: "text-[#C2C4D2] border-white/10 bg-[#080910]",
+  Rejected: "text-red-400 border-red-500/30 bg-red-500/10"
 };
 
 const sideTone = {
-  BUY: "text-cyan-300",
-  SELL: "text-red-300"
+  BUY: "text-cyan",
+  SELL: "text-red-400"
 };
 
 const Orders = () => {
@@ -94,7 +95,7 @@ const Orders = () => {
         acc[order.status.toLowerCase()] += 1;
         return acc;
       },
-      { total: 0, pending: 0, executed: 0, cancelled: 0, rejected: 0 }
+      { total: 0, pending: 0, triggered: 0, executed: 0, cancelled: 0, rejected: 0 }
     );
   }, [orders]);
 
@@ -138,7 +139,7 @@ const Orders = () => {
           { label: "Cancelled / Rejected", value: `${totals.cancelled} / ${totals.rejected}` }
         ].map((item) => (
           <GlassPanel key={item.label}>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">{item.label}</p>
+            <p className="text-[11px] uppercase text-[#A1A1B5]">{item.label}</p>
             <p className="mt-3 text-3xl font-semibold text-white">{item.value}</p>
           </GlassPanel>
         ))}
@@ -146,36 +147,36 @@ const Orders = () => {
 
       <GlassPanel>
         <div className="flex flex-wrap items-end gap-4">
-          <label className="flex flex-1 min-w-[180px] flex-col gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+          <label className="flex flex-1 min-w-[180px] flex-col gap-2 text-[11px] uppercase text-[#A1A1B5]">
             Symbol
             <input
               value={symbolFilter}
               onChange={(event) => setSymbolFilter(event.target.value)}
               placeholder="RELIANCE"
-              className="rounded-xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+              className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white outline-none focus:border-cyan"
             />
           </label>
-          <label className="flex min-w-[180px] flex-1 flex-col gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+          <label className="flex min-w-[180px] flex-1 flex-col gap-2 text-[11px] uppercase text-[#A1A1B5]">
             Status
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              className="rounded-xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+              className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white outline-none focus:border-cyan"
             >
               <option value="">All statuses</option>
-              {['Pending', 'Executed', 'Cancelled', 'Rejected'].map((status) => (
+              {['Pending', 'Triggered', 'Executed', 'Cancelled', 'Rejected'].map((status) => (
                 <option key={status} value={status}>
                   {status}
                 </option>
               ))}
             </select>
           </label>
-          <label className="flex min-w-[180px] flex-1 flex-col gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
+          <label className="flex min-w-[180px] flex-1 flex-col gap-2 text-[11px] uppercase text-[#A1A1B5]">
             Order Type
             <select
               value={typeFilter}
               onChange={(event) => setTypeFilter(event.target.value)}
-              className="rounded-xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400"
+              className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white outline-none focus:border-cyan"
             >
               <option value="">All types</option>
               {['MARKET', 'LIMIT', 'STOP_LOSS', 'STOP_LIMIT'].map((type) => (
@@ -188,13 +189,13 @@ const Orders = () => {
           <button
             type="button"
             onClick={loadOrders}
-            className="rounded-xl border border-cyan-400/70 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
+            className="rounded-2xl border border-cyan/70 bg-cyan/10 px-4 py-3 text-sm font-semibold text-cyan transition hover:bg-cyan/20"
           >
             Refresh
           </button>
           <Link
             to="/portfolio"
-            className="rounded-xl border border-borderGlow/60 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-300"
+            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
           >
             Portfolio
           </Link>
@@ -210,14 +211,14 @@ const Orders = () => {
       <GlassPanel>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Order History</p>
+            <p className="text-xs uppercase text-[#A1A1B5]">Order History</p>
             <h3 className="mt-2 text-lg font-semibold text-white">Recent orders</h3>
           </div>
-          <span className="text-xs text-slate-400">Tap a row for details</span>
+          <span className="text-xs text-[#A1A1B5]">Tap a row for details</span>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-borderGlow/60">
-          <div className="hidden bg-base/80 px-4 py-3 text-[11px] uppercase tracking-[0.25em] text-slate-400 md:grid md:grid-cols-12 md:gap-3">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+          <div className="hidden bg-[#080910] px-4 py-3 text-[11px] uppercase text-[#A1A1B5] md:grid md:grid-cols-12 md:gap-3">
             <span className="md:col-span-2">Symbol</span>
             <span className="md:col-span-1">Side</span>
             <span className="md:col-span-2">Type</span>
@@ -227,7 +228,7 @@ const Orders = () => {
             <span className="md:col-span-2">Updated</span>
           </div>
 
-          <div className="divide-y divide-borderGlow/50">
+          <div className="divide-y divide-white/10">
             {loading
               ? Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="px-4 py-4">
@@ -236,7 +237,7 @@ const Orders = () => {
                 ))
               : orders.length === 0
                 ? (
-                  <div className="px-4 py-10 text-center text-sm text-slate-400">
+                  <div className="px-4 py-10 text-center text-sm text-[#A1A1B5]">
                     No orders found. Place a market, limit, stop loss, or stop limit order to start tracking.
                   </div>
                 )
@@ -245,26 +246,28 @@ const Orders = () => {
                     key={order._id}
                     type="button"
                     onClick={() => openDetails(order)}
-                    className="grid w-full grid-cols-1 gap-2 px-4 py-4 text-left transition hover:bg-base/60 md:grid-cols-12 md:gap-3"
+                    className="grid w-full grid-cols-1 gap-2 px-4 py-4 text-left transition hover:bg-[#080910] md:grid-cols-12 md:gap-3"
                   >
                     <span className="md:col-span-2">
                       <span className="block text-sm font-semibold text-white">{order.symbol}</span>
-                      <span className="block text-xs text-slate-400">{order.companyName}</span>
+                      <span className="block text-xs text-[#A1A1B5]">{order.companyName}</span>
                     </span>
-                    <span className={`md:col-span-1 text-sm font-semibold ${sideTone[order.side] || 'text-slate-300'}`}>
+                    <span className={`md:col-span-1 text-sm font-semibold ${sideTone[order.side] || 'text-[#C2C4D2]'}`}>
                       {order.side}
                     </span>
-                    <span className="md:col-span-2 text-sm text-slate-300">{order.orderType.replace('_', ' ')}</span>
+                    <span className="md:col-span-2 text-sm text-[#C2C4D2]">{order.orderType.replace('_', ' ')}</span>
                     <span className="md:col-span-1 text-sm text-white">{order.quantity}</span>
                     <span className="md:col-span-2">
                       <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${badgeTone[order.status] || badgeTone.Pending}`}>
                         {order.status}
                       </span>
                     </span>
-                    <span className="md:col-span-2 text-sm text-slate-300">
+                    <span className="md:col-span-2 text-sm text-[#C2C4D2]">
                       {order.executionPrice ? formatCurrency(order.executionPrice) : order.orderType === 'MARKET' ? 'Queued' : 'Pending'}
                     </span>
-                    <span className="md:col-span-2 text-sm text-slate-400">{formatDate(order.updatedAt)}</span>
+                    <span className="md:col-span-2 text-sm text-[#A1A1B5]">
+                      {formatDate(order.executedAt || order.cancelledAt || order.updatedAt)}
+                    </span>
                   </button>
                 ))}
           </div>

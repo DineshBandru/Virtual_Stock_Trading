@@ -1,107 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
-import TopTicker from "../components/TopTicker";
 import { Skeleton } from "../components/Skeleton";
 import useAuth from "../hooks/useAuth";
 import useLivePrices from "../hooks/useLivePrices";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
-
-const INDEX_SYMBOLS = [
-  { label: "NIFTY 50", symbol: "^NSEI" },
-  { label: "SENSEX", symbol: "^BSESN" },
-  { label: "BANKNIFTY", symbol: "^NSEBANK" }
-];
-
-const DEMO_INDEX_OVERVIEW = [
-  {
-    label: "NIFTY 50",
-    symbol: "^NSEI",
-    value: 22550.4,
-    changePct: 0.72,
-    direction: "up",
-    marketTime: "ref"
-  },
-  {
-    label: "SENSEX",
-    symbol: "^BSESN",
-    value: 74120.85,
-    changePct: -0.28,
-    direction: "down",
-    marketTime: "ref"
-  },
-  {
-    label: "BANKNIFTY",
-    symbol: "^NSEBANK",
-    value: 48210.65,
-    changePct: 0.34,
-    direction: "up",
-    marketTime: "ref"
-  }
-];
-
-const DEMO_MARKET_UNIVERSE = [
-  { symbol: "RELIANCE.NS", name: "Reliance Industries", currentPrice: 1321.2, changePct: -2.17, volume: 18200000 },
-  { symbol: "TCS.NS", name: "Tata Consultancy Services", currentPrice: 2258.9, changePct: -1.11, volume: 4200000 },
-  { symbol: "INFY.NS", name: "Infosys", currentPrice: 1160.9, changePct: 0.09, volume: 9100000 },
-  { symbol: "HDFCBANK.NS", name: "HDFC Bank", currentPrice: 744.55, changePct: -1.86, volume: 12400000 },
-  { symbol: "ICICIBANK.NS", name: "ICICI Bank", currentPrice: 1256.4, changePct: -1.28, volume: 10200000 },
-  { symbol: "SBIN.NS", name: "State Bank of India", currentPrice: 964.4, changePct: -0.35, volume: 15800000 },
-  { symbol: "ITC.NS", name: "ITC", currentPrice: 286.9, changePct: -1.73, volume: 11700000 },
-  { symbol: "LT.NS", name: "Larsen and Toubro", currentPrice: 4076.5, changePct: 0.72, volume: 2900000 },
-  { symbol: "BHARTIARTL.NS", name: "Bharti Airtel", currentPrice: 1829, changePct: -1.25, volume: 8400000 },
-  { symbol: "KOTAKBANK.NS", name: "Kotak Mahindra Bank", currentPrice: 384.2, changePct: -1.16, volume: 6300000 },
-  { symbol: "HINDUNILVR.NS", name: "Hindustan Unilever", currentPrice: 2153.5, changePct: -2.04, volume: 7600000 },
-  { symbol: "ASIANPAINT.NS", name: "Asian Paints", currentPrice: 2671.6, changePct: -0.01, volume: 5100000 },
-  { symbol: "BAJFINANCE.NS", name: "Bajaj Finance", currentPrice: 908.25, changePct: -2.46, volume: 6900000 },
-  { symbol: "HCLTECH.NS", name: "HCL Technologies", currentPrice: 1183.8, changePct: 1.60, volume: 5700000 },
-  { symbol: "AXISBANK.NS", name: "Axis Bank", currentPrice: 1286.6, changePct: -1.34, volume: 9800000 },
-  { symbol: "WIPRO.NS", name: "Wipro", currentPrice: 204.25, changePct: 1.32, volume: 7200000 },
-  { symbol: "ADANIENT.NS", name: "Adani Enterprises", currentPrice: 2937.4, changePct: -1.20, volume: 4300000 },
-  { symbol: "SUNPHARMA.NS", name: "Sun Pharma", currentPrice: 1191.3, changePct: -0.67, volume: 6100000 },
-  { symbol: "TITAN.NS", name: "Titan", currentPrice: 3078.2, changePct: 0.95, volume: 3500000 },
-  { symbol: "MARUTI.NS", name: "Maruti Suzuki", currentPrice: 12824.9, changePct: -0.44, volume: 2600000 }
-];
-
-const DEMO_NEWS_ITEMS = [
-  {
-    source: "Market Wire",
-    headline: "FII buying lifts defensives as volatility cools into the close",
-    datetime: Math.floor(Date.now() / 1000) - 900,
-    url: "https://www.tradingview.com/news/",
-    summary: ""
-  },
-  {
-    source: "Equity Brief",
-    headline: "Banks and autos hold support while IT sees selective profit booking",
-    datetime: Math.floor(Date.now() / 1000) - 1800,
-    url: "https://www.tradingview.com/markets/stocks-india/",
-    summary: ""
-  },
-  {
-    source: "Macro Desk",
-    headline: "Midcaps stay range-bound ahead of global macro cues and crude prints",
-    datetime: Math.floor(Date.now() / 1000) - 2700,
-    url: "https://www.nseindia.com/",
-    summary: ""
-  },
-  {
-    source: "Options Flow",
-    headline: "Index traders position for a narrow session as Bank Nifty stabilizes",
-    datetime: Math.floor(Date.now() / 1000) - 3600,
-    url: "https://www.nseindia.com/market-data/live-equity-market",
-    summary: ""
-  },
-  {
-    source: "Opening Bell",
-    headline: "Nifty futures steady; focus shifts to earnings and institutional flow",
-    datetime: Math.floor(Date.now() / 1000) - 4500,
-    url: "https://www.moneycontrol.com/",
-    summary: ""
-  }
-];
+import socket from "../utils/socket";
 
 const quickLinks = [
   { label: "Portfolio", path: "/portfolio" },
@@ -125,15 +31,28 @@ const compactInr = new Intl.NumberFormat("en-IN", {
 });
 
 const formatCurrency = (value) =>
-  Number.isFinite(value) ? inr.format(value) : "—";
+  Number.isFinite(value) ? inr.format(value) : "N/A";
 
 const formatPercent = (value) =>
-  Number.isFinite(value) ? `${value >= 0 ? "+" : ""}${value.toFixed(2)}%` : "—";
+  Number.isFinite(value) ? `${value >= 0 ? "+" : ""}${value.toFixed(2)}%` : "N/A";
 
 const formatCompact = (value) =>
-  Number.isFinite(value) ? compactInr.format(value) : "—";
+  Number.isFinite(value) ? compactInr.format(value) : "N/A";
 
 const stripNseSuffix = (symbol) => symbol.replace(/\.NS$/i, "");
+
+const ensureNseSuffix = (symbol) => {
+  const normalized = String(symbol || "").trim().toUpperCase();
+  if (!normalized) return "";
+  return normalized.endsWith(".NS") ? normalized : `${normalized}.NS`;
+};
+
+const normalizeSearchResult = (item) => {
+  const symbol = ensureNseSuffix(item?.symbol || item?.ticker || "");
+  const companyName = String(item?.companyName || item?.name || item?.description || symbol).trim();
+  if (!symbol.endsWith(".NS")) return null;
+  return { symbol, companyName };
+};
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -158,8 +77,8 @@ const getMarketStatus = () => {
 
   return {
     label: isOpen ? "Market Open" : "Market Closed",
-    tone: isOpen ? "text-cyan-300" : "text-amber-300",
-    dot: isOpen ? "bg-cyan-400" : "bg-amber-400",
+    tone: isOpen ? "text-emerald-400" : "text-[#A1A1B5]",
+    dot: isOpen ? "bg-emerald-400" : "bg-slate-500",
     clock: ist.toLocaleTimeString("en-IN", {
       hour: "2-digit",
       minute: "2-digit",
@@ -177,17 +96,48 @@ const withTimeout = (promise, timeoutMs, fallbackValue) =>
   ]);
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const livePrices = useLivePrices();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [marketOverview, setMarketOverview] = useState(DEMO_INDEX_OVERVIEW);
-  const [marketUniverse, setMarketUniverse] = useState(DEMO_MARKET_UNIVERSE);
-  const [newsItems, setNewsItems] = useState(DEMO_NEWS_ITEMS);
+  const [marketUniverse, setMarketUniverse] = useState([]);
+  const [newsItems, setNewsItems] = useState([]);
   const [portfolioHoldings, setPortfolioHoldings] = useState([]);
   const [watchlistSymbols, setWatchlistSymbols] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [searchSymbol, setSearchSymbol] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [highlightedSearchIndex, setHighlightedSearchIndex] = useState(0);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const searchRequestId = useRef(0);
+  const subscribedSymbols = useMemo(
+    () => [
+      ...portfolioHoldings.map((holding) => holding.symbol),
+      ...watchlistSymbols
+    ].filter(Boolean),
+    [portfolioHoldings, watchlistSymbols]
+  );
+  const livePrices = useLivePrices(subscribedSymbols);
+
+  const goToSymbol = (symbol) => {
+    const normalized = ensureNseSuffix(symbol);
+    if (normalized) {
+      navigate(`/stocks/${encodeURIComponent(normalized)}`);
+    }
+  };
+
+  const selectSearchResult = (result) => {
+    if (!result?.symbol) return;
+    setSearchSymbol(result.symbol);
+    setSearchOpen(false);
+    setSearchResults([]);
+    setSearchError("");
+    goToSymbol(result.symbol);
+  };
 
   useEffect(() => {
     let active = true;
@@ -196,19 +146,10 @@ const Dashboard = () => {
       try {
         setLoading(true);
         setError("");
-        setMarketOverview(DEMO_INDEX_OVERVIEW);
 
-        const [portfolioData, watchlistData, trendingData, newsData] = await Promise.all([
-          withTimeout(
-            api.get("/api/portfolio").then((response) => response.data || []).catch(() => []),
-            2500,
-            []
-          ),
-          withTimeout(
-            api.get("/api/watchlist").then((response) => response.data?.symbols || []).catch(() => []),
-            2500,
-            []
-          ),
+        const [portfolioResponse, watchlistResponse, trendingData, newsData] = await Promise.all([
+          api.get("/api/portfolio"),
+          api.get("/api/watchlist"),
           withTimeout(
             api.get("/api/stocks/trending").then((response) => response.data || []).catch(() => []),
             2500,
@@ -221,8 +162,8 @@ const Dashboard = () => {
           )
         ]);
 
-        const holdings = portfolioData;
-        const watchlist = watchlistData;
+        const holdings = Array.isArray(portfolioResponse.data) ? portfolioResponse.data : [];
+        const watchlist = watchlistResponse.data?.symbols || [];
         const trending = trendingData;
         const news = newsData;
 
@@ -239,30 +180,22 @@ const Dashboard = () => {
             changePct,
             volume
           };
-        }) : DEMO_MARKET_UNIVERSE;
+        }) : [];
 
-        const holdingQuoteResults = await Promise.allSettled(
-          holdings.map((holding) => api.get(`/api/stocks/${encodeURIComponent(holding.symbol)}`))
-        );
-
-        const enrichedHoldings = holdings.map((holding, index) => {
-          const response = holdingQuoteResults[index];
-          const quote =
-            response.status === "fulfilled" ? response.value.data?.quote || {} : {};
-          const currentPrice = toNumber(quote?.c);
-          const openPrice = toNumber(quote?.o);
+        const enrichedHoldings = holdings.map((holding) => {
+          const currentPrice = toNumber(holding.currentPrice);
+          const openPrice = toNumber(holding.open);
           const currentValue = toNumber(holding.currentValue);
-          const invested = toNumber(holding.totalInvested);
+          const invested = toNumber(holding.investedValue ?? holding.totalInvested);
 
           return {
             ...holding,
-            quote,
             currentPrice,
             currentValue: Number.isFinite(currentValue)
               ? currentValue
               : Number.isFinite(currentPrice)
                 ? currentPrice * toNumber(holding.quantity)
-                : 0,
+                : null,
             invested: Number.isFinite(invested) ? invested : 0,
             todayPnl:
               Number.isFinite(currentPrice) && Number.isFinite(openPrice)
@@ -276,13 +209,12 @@ const Dashboard = () => {
         }
 
         setMarketUniverse(universe);
-        setNewsItems(news.length > 0 ? news.slice(0, 5) : DEMO_NEWS_ITEMS);
+        setNewsItems(news.length > 0 ? news.slice(0, 5) : []);
         setPortfolioHoldings(enrichedHoldings);
         setWatchlistSymbols(watchlist);
         setLastUpdated(new Date());
       } catch (fetchError) {
         if (active) {
-          setMarketOverview(DEMO_INDEX_OVERVIEW);
           setError(getApiErrorMessage(fetchError, "Failed to load dashboard"));
         }
       } finally {
@@ -297,7 +229,92 @@ const Dashboard = () => {
     return () => {
       active = false;
     };
-  }, [user?.id, user?._id]);
+  }, [user?.id, user?._id, refreshTick]);
+
+  useEffect(() => {
+    const refreshDashboard = () => setRefreshTick((value) => value + 1);
+
+    socket.on("portfolio-update", refreshDashboard);
+    socket.on("position-update", refreshDashboard);
+    socket.on("transaction-update", refreshDashboard);
+    socket.on("order-update", refreshDashboard);
+    socket.on("connect", refreshDashboard);
+
+    return () => {
+      socket.off("portfolio-update", refreshDashboard);
+      socket.off("position-update", refreshDashboard);
+      socket.off("transaction-update", refreshDashboard);
+      socket.off("order-update", refreshDashboard);
+      socket.off("connect", refreshDashboard);
+    };
+  }, []);
+
+  useEffect(() => {
+    const query = searchSymbol.trim();
+    const requestId = searchRequestId.current + 1;
+    searchRequestId.current = requestId;
+
+    if (query.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError("");
+      setSearchOpen(false);
+      setHighlightedSearchIndex(0);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setSearchLoading(true);
+    setSearchError("");
+    setSearchOpen(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await api.get("/api/stocks/search", {
+          params: { q: query },
+          signal: controller.signal
+        });
+
+        if (searchRequestId.current !== requestId) {
+          return;
+        }
+
+        const rawResults = Array.isArray(response.data?.result)
+          ? response.data.result
+          : Array.isArray(response.data)
+            ? response.data
+            : [];
+        const seen = new Set();
+        const normalizedResults = rawResults
+          .map(normalizeSearchResult)
+          .filter(Boolean)
+          .filter((item) => {
+            if (!item.symbol || seen.has(item.symbol)) {
+              return false;
+            }
+            seen.add(item.symbol);
+            return true;
+          });
+
+        setSearchResults(normalizedResults);
+        setHighlightedSearchIndex(0);
+      } catch (err) {
+        if (controller.signal.aborted || searchRequestId.current !== requestId) {
+          return;
+        }
+        setSearchResults([]);
+        setSearchError(getApiErrorMessage(err, "Unable to search stocks"));
+      } finally {
+        if (!controller.signal.aborted && searchRequestId.current === requestId) {
+          setSearchLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [searchSymbol]);
 
   const topGainers = useMemo(
     () =>
@@ -326,44 +343,170 @@ const Dashboard = () => {
     [marketUniverse]
   );
 
-  const portfolioValue = portfolioHoldings.reduce((sum, item) => sum + item.currentValue, 0);
+  const livePortfolioHoldings = useMemo(() => {
+    return portfolioHoldings.map((item) => {
+      const quote = livePrices[item.symbol];
+      const livePrice = toNumber(quote?.price ?? quote?.c);
+      const fallbackPrice = toNumber(item.currentPrice);
+      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
+        ? true
+        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
+      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
+      const quantity = toNumber(item.quantity);
+      const invested = toNumber(item.invested ?? item.investedValue ?? item.totalInvested) || 0;
+      const currentValue = hasPrice ? currentPrice * quantity : null;
+      const previousClose = toNumber(quote?.previousClose ?? quote?.pc);
+      return {
+        ...item,
+        currentPrice,
+        currentValue,
+        invested,
+        todayPnl:
+          Number.isFinite(currentPrice) && Number.isFinite(previousClose)
+            ? (currentPrice - previousClose) * quantity
+            : item.todayPnl || 0
+      };
+    });
+  }, [livePrices, portfolioHoldings]);
+
+  const portfolioValue = livePortfolioHoldings.reduce((sum, item) => sum + (Number(item.currentValue) || 0), 0);
   const availableCash = toNumber(user?.balance) || 0;
   const totalAccountValue = availableCash + portfolioValue;
-  const totalPnl = portfolioHoldings.reduce((sum, item) => sum + (item.currentValue - item.invested), 0);
-  const todayPnl = portfolioHoldings.reduce((sum, item) => sum + item.todayPnl, 0);
+  const totalPnl = livePortfolioHoldings.reduce((sum, item) => sum + ((Number(item.currentValue) || 0) - (Number(item.invested) || 0)), 0);
+  const todayPnl = livePortfolioHoldings.reduce((sum, item) => sum + (Number(item.todayPnl) || 0), 0);
   const marketStatus = getMarketStatus();
   const watchlistPreview = watchlistSymbols.slice(0, 5);
 
   return (
-    <div className="flex flex-col gap-8">
-      <TopTicker />
-
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <PageHeader
-          title="Terminal Dashboard"
-          subtitle="Professional market intelligence, portfolio surveillance, and live trading context in one command center."
+          title="Dashboard"
+          subtitle="Market overview, portfolio status, watchlist activity, and current trading context."
         />
 
-        <div className="grid gap-4 xl:grid-cols-[1.6fr_0.9fr]">
-          <GlassPanel className="flex flex-col justify-between gap-4 border-cyan-500/30 bg-gradient-to-br from-panel/80 via-panel/70 to-base/90">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+          <GlassPanel className="flex flex-col justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-cyan-300/80">
-                Search Desk
+              <p className="text-sm font-medium text-[#A1A1B5]">
+                Search
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-white">
+              <h2 className="mt-1 text-xl font-semibold text-white">
                 Navigate any NSE symbol in seconds
               </h2>
             </div>
-            <input
-              type="text"
-              placeholder="Search NSE Stocks (e.g. RELIANCE)..."
-              className="w-full rounded-2xl border border-borderGlow/60 bg-base/85 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
-            />
+            <form
+              className="relative flex flex-col gap-3 sm:flex-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const selectedResult = searchResults[highlightedSearchIndex] || searchResults[0];
+                if (selectedResult) {
+                  selectSearchResult(selectedResult);
+                } else if (searchSymbol.trim().toUpperCase().endsWith(".NS")) {
+                  goToSymbol(searchSymbol);
+                } else if (searchSymbol.trim().length >= 2) {
+                  setSearchOpen(true);
+                  setSearchError("Select a valid NSE result before opening the stock.");
+                }
+              }}
+            >
+              <div className="relative min-w-0 flex-1">
+                <input
+                  type="text"
+                  value={searchSymbol}
+                  onChange={(event) => {
+                    setSearchSymbol(event.target.value);
+                    setSearchOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (searchSymbol.trim().length >= 2) {
+                      setSearchOpen(true);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (!searchOpen && ["ArrowDown", "ArrowUp"].includes(event.key)) {
+                      setSearchOpen(true);
+                      return;
+                    }
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      setHighlightedSearchIndex((current) =>
+                        searchResults.length ? (current + 1) % searchResults.length : 0
+                      );
+                    } else if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setHighlightedSearchIndex((current) =>
+                        searchResults.length ? (current - 1 + searchResults.length) % searchResults.length : 0
+                      );
+                    } else if (event.key === "Escape") {
+                      setSearchOpen(false);
+                    }
+                  }}
+                  placeholder="Search NSE Stocks (e.g. RELIANCE)..."
+                  aria-expanded={searchOpen}
+                  aria-controls="dashboard-stock-search-results"
+                  className="w-full rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#6F7487] focus:border-cyan focus:ring-2 focus:ring-cyan/20"
+                />
+
+                {searchOpen && searchSymbol.trim().length >= 2 ? (
+                  <div
+                    id="dashboard-stock-search-results"
+                    className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-2xl border border-white/10 bg-[#121320] shadow-2xl"
+                  >
+                    {searchLoading ? (
+                      <div className="px-4 py-3 text-sm text-[#C2C4D2]">Searching NSE stocks...</div>
+                    ) : searchError ? (
+                      <div className="px-4 py-3 text-sm text-red-300">{searchError}</div>
+                    ) : searchResults.length > 0 ? (
+                      <div className="max-h-72 overflow-y-auto py-2">
+                        {searchResults.map((result, index) => (
+                          <button
+                            key={result.symbol}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => selectSearchResult(result)}
+                            className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition ${
+                              index === highlightedSearchIndex
+                                ? "bg-cyan/10 text-white"
+                                : "text-[#C2C4D2] hover:bg-white/[0.04] hover:text-white"
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block font-mono text-sm font-semibold">{result.symbol}</span>
+                              <span className="mt-1 block truncate text-xs text-[#A1A1B5]">{result.companyName}</span>
+                            </span>
+                            <span className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-[11px] text-cyan">
+                              NSE
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-3 text-sm text-[#C2C4D2]">No valid NSE results found.</div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              <button
+                type="submit"
+                disabled={searchLoading || (searchSymbol.trim().length >= 2 && !searchResults.length && !searchSymbol.trim().toUpperCase().endsWith(".NS"))}
+                className="rounded-2xl bg-cyan px-5 py-3 text-sm font-semibold text-base transition hover:bg-cyan/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {searchLoading ? "Searching..." : "Search"}
+              </button>
+              <button
+                type="button"
+                onClick={() => goToSymbol("RELIANCE.NS")}
+                className="rounded-2xl border border-white/10 bg-[#080910] px-5 py-3 text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
+              >
+                Try RELIANCE
+              </button>
+            </form>
           </GlassPanel>
 
           <GlassPanel className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
+              <p className="text-sm font-medium text-[#A1A1B5]">
                 Market Status
               </p>
               <div className="mt-3 flex items-center gap-3">
@@ -372,24 +515,24 @@ const Dashboard = () => {
                   {marketStatus.label}
                 </p>
               </div>
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-[#A1A1B5]">
                 Last updated {marketStatus.clock}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-right">
-              <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">
+            <div className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-right">
+              <p className="text-xs text-[#A1A1B5]">
                 Watchlist Feed
               </p>
               <p className="mt-2 text-2xl font-semibold text-white">{watchlistSymbols.length}</p>
-              <p className="text-xs text-slate-400">Symbols tracked</p>
+              <p className="text-xs text-[#A1A1B5]">Symbols tracked</p>
             </div>
           </GlassPanel>
         </div>
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
           {error}
         </div>
       ) : null}
@@ -399,14 +542,12 @@ const Dashboard = () => {
           <GlassPanel>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
-                  Market Overview
-                </p>
-                <h3 className="mt-2 text-xl font-semibold text-white">
-                  Index pulse for the Indian market
+                <p className="text-sm font-medium text-[#A1A1B5]">Market Feed</p>
+                <h3 className="mt-1 text-xl font-semibold text-white">
+                  Live NSE names from the market API
                 </h3>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[#A1A1B5]">
                 {lastUpdated
                   ? `Synced ${lastUpdated.toLocaleTimeString("en-IN", {
                       hour: "2-digit",
@@ -422,43 +563,47 @@ const Dashboard = () => {
                 ? Array.from({ length: 3 }).map((_, index) => (
                     <div
                       key={index}
-                      className="rounded-2xl border border-borderGlow/60 bg-base/70 p-4"
+                      className="rounded-2xl border border-white/10 bg-[#080910] p-4"
                     >
                       <Skeleton className="h-3 w-1/2" />
                       <Skeleton className="mt-4 h-7 w-3/4" />
                       <Skeleton className="mt-3 h-4 w-1/3" />
                     </div>
                   ))
-                : marketOverview.map((item) => (
+                : marketUniverse.slice(0, 3).length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910] p-4 text-sm text-[#A1A1B5] md:col-span-3">
+                      Market feed is unavailable right now.
+                    </div>
+                  ) : marketUniverse.slice(0, 3).map((item) => (
                     <div
                       key={item.symbol}
-                      className="rounded-2xl border border-borderGlow/60 bg-base/75 p-4 shadow-glow/20"
+                      className="rounded-2xl border border-white/10 bg-[#080910] p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">
-                            {item.label}
+                          <p className="text-xs font-medium text-[#A1A1B5]">
+                            {stripNseSuffix(item.symbol)}
                           </p>
                           <p className="mt-2 text-xl font-semibold text-white">
-                            {formatCurrency(item.value)}
+                            {formatCurrency(item.currentPrice)}
                           </p>
                         </div>
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-2xl border ${
-                            item.direction === "up"
-                              ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
-                              : "border-red-400/40 bg-red-400/10 text-red-300"
+                          className={`flex h-8 min-w-12 items-center justify-center rounded-md border px-2 text-xs font-semibold ${
+                            item.changePct >= 0
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                              : "border-red-500/30 bg-red-500/10 text-red-400"
                           }`}
                         >
-                          {item.direction === "up" ? "▲" : "▼"}
+                          {item.changePct >= 0 ? "Up" : "Down"}
                         </div>
                       </div>
                       <div className="mt-4 flex items-center justify-between text-sm">
-                        <span className={item.direction === "up" ? "text-cyan-300" : "text-red-300"}>
+                        <span className={item.changePct >= 0 ? "text-emerald-400" : "text-red-400"}>
                           {formatPercent(item.changePct)}
                         </span>
-                        <span className="text-xs text-slate-500">
-                          {item.marketTime ? `Updated ${item.marketTime}` : "Live"}
+                        <span className="text-xs text-[#6F7487]">
+                          Vol {formatCompact(item.volume)}
                         </span>
                       </div>
                     </div>
@@ -470,33 +615,33 @@ const Dashboard = () => {
             <GlassPanel>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
+                  <p className="text-sm font-medium text-[#A1A1B5]">
                     Top Gainers
                   </p>
-                  <h3 className="mt-2 text-lg font-semibold text-white">Strongest movers today</h3>
+                  <h3 className="mt-1 text-lg font-semibold text-white">Strongest movers today</h3>
                 </div>
-                <span className="text-xs text-slate-400">Top 5</span>
+                <span className="text-xs text-[#A1A1B5]">Top 5</span>
               </div>
 
               <div className="mt-6 space-y-3">
                 {topGainers.length === 0 ? (
-                  <p className="text-sm text-slate-400">No gainers available yet.</p>
+                  <p className="text-sm text-[#A1A1B5]">No gainers available yet.</p>
                 ) : (
                   topGainers.map((item, index) => (
                     <Link
                       key={item.symbol}
                       to={`/stocks/${stripNseSuffix(item.symbol)}`}
-                      className="flex items-center justify-between rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-3 transition hover:border-cyan-400/50 hover:bg-base/90"
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 transition hover:border-cyan/40 hover:bg-[#1A1B2B]"
                     >
                       <div>
-                        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+                        <p className="text-xs font-medium text-[#A1A1B5]">
                           #{index + 1} {stripNseSuffix(item.symbol)}
                         </p>
-                        <p className="mt-1 text-sm text-slate-300">{item.name}</p>
+                        <p className="mt-1 text-sm text-[#C2C4D2]">{item.name}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-mono text-white">{formatCurrency(item.currentPrice)}</p>
-                        <p className="text-xs text-cyan-300">{formatPercent(item.changePct)}</p>
+                        <p className="text-xs text-emerald-400">{formatPercent(item.changePct)}</p>
                       </div>
                     </Link>
                   ))
@@ -507,33 +652,33 @@ const Dashboard = () => {
             <GlassPanel>
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
+                  <p className="text-sm font-medium text-[#A1A1B5]">
                     Top Losers
                   </p>
-                  <h3 className="mt-2 text-lg font-semibold text-white">Weakest movers today</h3>
+                  <h3 className="mt-1 text-lg font-semibold text-white">Weakest movers today</h3>
                 </div>
-                <span className="text-xs text-slate-400">Top 5</span>
+                <span className="text-xs text-[#A1A1B5]">Top 5</span>
               </div>
 
               <div className="mt-6 space-y-3">
                 {topLosers.length === 0 ? (
-                  <p className="text-sm text-slate-400">No losers available yet.</p>
+                  <p className="text-sm text-[#A1A1B5]">No losers available yet.</p>
                 ) : (
                   topLosers.map((item, index) => (
                     <Link
                       key={item.symbol}
                       to={`/stocks/${stripNseSuffix(item.symbol)}`}
-                      className="flex items-center justify-between rounded-2xl border border-borderGlow/60 bg-base/70 px-4 py-3 transition hover:border-red-400/50 hover:bg-base/90"
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 transition hover:border-red-500/40 hover:bg-[#1A1B2B]"
                     >
                       <div>
-                        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+                        <p className="text-xs font-medium text-[#A1A1B5]">
                           #{index + 1} {stripNseSuffix(item.symbol)}
                         </p>
-                        <p className="mt-1 text-sm text-slate-300">{item.name}</p>
+                        <p className="mt-1 text-sm text-[#C2C4D2]">{item.name}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-mono text-white">{formatCurrency(item.currentPrice)}</p>
-                        <p className="text-xs text-red-300">{formatPercent(item.changePct)}</p>
+                        <p className="text-xs text-red-400">{formatPercent(item.changePct)}</p>
                       </div>
                     </Link>
                   ))
@@ -542,20 +687,20 @@ const Dashboard = () => {
             </GlassPanel>
           </div>
 
-          <GlassPanel>
+          <GlassPanel id="market-news">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
+                <p className="text-sm font-medium text-[#A1A1B5]">
                   Trending Stocks
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">Top volume names in focus</h3>
+                <h3 className="mt-1 text-lg font-semibold text-white">Top volume names in focus</h3>
               </div>
-              <span className="text-xs text-slate-400">Top 5 by volume</span>
+              <span className="text-xs text-[#A1A1B5]">Top 5 by volume</span>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               {topVolumeStocks.length === 0 ? (
-                <div className="text-sm text-slate-400 md:col-span-2 xl:col-span-5">
+                <div className="text-sm text-[#A1A1B5] md:col-span-2 xl:col-span-5">
                   Volume data is currently unavailable.
                 </div>
               ) : (
@@ -563,20 +708,20 @@ const Dashboard = () => {
                   <Link
                     key={item.symbol}
                     to={`/stocks/${stripNseSuffix(item.symbol)}`}
-                    className="rounded-2xl border border-borderGlow/60 bg-base/75 p-4 transition hover:border-cyan-400/50 hover:bg-base/90"
+                    className="rounded-2xl border border-white/10 bg-[#080910] p-4 transition hover:border-cyan/40 hover:bg-[#1A1B2B]"
                   >
-                    <p className="text-xs uppercase tracking-[0.25em] text-slate-400">
+                    <p className="text-xs font-medium text-[#A1A1B5]">
                       {stripNseSuffix(item.symbol)}
                     </p>
-                    <p className="mt-2 text-sm font-medium text-slate-200">{item.name}</p>
+                    <p className="mt-2 text-sm font-medium text-[#E7E9F3]">{item.name}</p>
                     <p className="mt-4 font-mono text-lg text-white">
                       {formatCurrency(item.currentPrice)}
                     </p>
                     <div className="mt-2 flex items-center justify-between text-xs">
-                      <span className={item.changePct >= 0 ? "text-cyan-300" : "text-red-300"}>
+                      <span className={item.changePct >= 0 ? "text-emerald-400" : "text-red-400"}>
                         {formatPercent(item.changePct)}
                       </span>
-                      <span className="text-slate-400">Vol {formatCompact(item.volume)}</span>
+                      <span className="text-[#A1A1B5]">Vol {formatCompact(item.volume)}</span>
                     </div>
                   </Link>
                 ))
@@ -587,17 +732,17 @@ const Dashboard = () => {
           <GlassPanel>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
-                  Market News Widget
+                <p className="text-sm font-medium text-[#A1A1B5]">
+                  Market News
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">Latest market headlines</h3>
+                <h3 className="mt-1 text-lg font-semibold text-white">Latest market headlines</h3>
               </div>
-              <span className="text-xs text-slate-400">Clickable cards</span>
+              <span className="text-xs text-[#A1A1B5]">Clickable cards</span>
             </div>
 
             <div className="mt-6 space-y-3">
               {newsItems.length === 0 ? (
-                <p className="text-sm text-slate-400">No news feed available right now.</p>
+                <p className="text-sm text-[#A1A1B5]">No news feed available right now.</p>
               ) : (
                 newsItems.map((item, index) => {
                   const timestamp = item.datetime
@@ -615,18 +760,18 @@ const Dashboard = () => {
                       href={item.url || "#"}
                       target="_blank"
                       rel="noreferrer"
-                      className="block rounded-2xl border border-borderGlow/60 bg-base/75 px-4 py-4 transition hover:border-cyan-400/50 hover:bg-base/90"
+                      className="block rounded-2xl border border-white/10 bg-[#080910] px-4 py-4 transition hover:border-cyan/40 hover:bg-[#1A1B2B]"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
-                          <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-300/80">
+                          <p className="text-xs font-medium text-cyan">
                             {item.source || "Market News"}
                           </p>
                           <p className="mt-2 line-clamp-2 text-sm font-medium text-white">
                             {item.headline || item.summary || "Market update"}
                           </p>
                         </div>
-                        <span className="shrink-0 rounded-full border border-borderGlow/60 px-3 py-1 text-[11px] text-slate-400">
+                        <span className="shrink-0 rounded-md border border-white/10 px-3 py-1 text-xs text-[#A1A1B5]">
                           {timestamp}
                         </span>
                       </div>
@@ -642,12 +787,12 @@ const Dashboard = () => {
           <GlassPanel>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
-                  Portfolio Snapshot Widget
+                <p className="text-sm font-medium text-[#A1A1B5]">
+                  Portfolio Snapshot
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">Account overview</h3>
+                <h3 className="mt-1 text-lg font-semibold text-white">Account overview</h3>
               </div>
-              <span className="text-xs text-slate-400">Live</span>
+              <span className="text-xs text-[#A1A1B5]">Live</span>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
@@ -659,9 +804,9 @@ const Dashboard = () => {
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-2xl border border-borderGlow/60 bg-base/75 px-4 py-4"
+                  className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4"
                 >
-                  <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">
+                  <p className="text-xs font-medium text-[#A1A1B5]">
                     {item.label}
                   </p>
                   <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
@@ -673,24 +818,25 @@ const Dashboard = () => {
           <GlassPanel>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
-                  Watchlist Quick View
+                <p className="text-sm font-medium text-[#A1A1B5]">
+                  Watchlist
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">Symbols on your radar</h3>
+                <h3 className="mt-1 text-lg font-semibold text-white">Symbols on your radar</h3>
               </div>
-              <span className="text-xs text-slate-400">{watchlistPreview.length} shown</span>
+              <span className="text-xs text-[#A1A1B5]">{watchlistPreview.length} shown</span>
             </div>
 
             <div className="mt-6 space-y-3">
               {watchlistPreview.length === 0 ? (
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-[#A1A1B5]">
                   Add symbols to your watchlist to see live prices here.
                 </p>
               ) : (
                 watchlistPreview.map((symbol) => {
+                  const normalizedSymbol = ensureNseSuffix(symbol);
                   const quote =
-                    livePrices[symbol] ||
-                    marketUniverse.find((item) => item.symbol === `${symbol}.NS`) ||
+                    livePrices[normalizedSymbol] ||
+                    marketUniverse.find((item) => item.symbol === normalizedSymbol) ||
                     {};
                   const currentPrice = toNumber(quote.c ?? quote.currentPrice);
                   const previousClose = toNumber(quote.pc ?? quote.regularMarketPreviousClose);
@@ -705,14 +851,14 @@ const Dashboard = () => {
                   return (
                     <Link
                       key={symbol}
-                      to={`/stocks/${symbol}`}
-                      className="flex items-center justify-between rounded-2xl border border-borderGlow/60 bg-base/75 px-4 py-3 transition hover:border-cyan-400/50 hover:bg-base/90"
+                      to={`/stocks/${normalizedSymbol}`}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 transition hover:border-cyan/40 hover:bg-[#1A1B2B]"
                     >
                       <div>
-                        <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{symbol}</p>
+                        <p className="text-xs font-medium text-[#A1A1B5]">{symbol}</p>
                         <p className="mt-2 font-mono text-lg text-white">{formatCurrency(currentPrice)}</p>
                       </div>
-                      <p className={`text-sm ${changePct >= 0 ? "text-cyan-300" : "text-red-300"}`}>
+                      <p className={`text-sm ${changePct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                         {formatPercent(changePct)}
                       </p>
                     </Link>
@@ -725,10 +871,10 @@ const Dashboard = () => {
           <GlassPanel>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
-                  Market Status Widget
+                <p className="text-sm font-medium text-[#A1A1B5]">
+                  Market Status
                 </p>
-                <h3 className="mt-2 text-lg font-semibold text-white">Session state</h3>
+                <h3 className="mt-1 text-lg font-semibold text-white">Session state</h3>
               </div>
               <span className={`text-sm font-semibold ${marketStatus.tone}`}>
                 {marketStatus.label}
@@ -736,14 +882,14 @@ const Dashboard = () => {
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-              <div className="rounded-2xl border border-borderGlow/60 bg-base/75 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">State</p>
+              <div className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4">
+                <p className="text-xs font-medium text-[#A1A1B5]">State</p>
                 <p className={`mt-3 text-2xl font-semibold ${marketStatus.tone}`}>
                   {marketStatus.label}
                 </p>
               </div>
-              <div className="rounded-2xl border border-borderGlow/60 bg-base/75 px-4 py-4">
-                <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">
+              <div className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4">
+                <p className="text-xs font-medium text-[#A1A1B5]">
                   Last Updated
                 </p>
                 <p className="mt-3 text-2xl font-semibold text-white">{marketStatus.clock}</p>
@@ -754,7 +900,7 @@ const Dashboard = () => {
       </div>
 
       <GlassPanel>
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
+        <h3 className="text-sm font-semibold text-[#C2C4D2]">
           Quick Links
         </h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -762,7 +908,7 @@ const Dashboard = () => {
             <Link
               key={item.path}
               to={item.path}
-              className="rounded-xl border border-borderGlow/60 bg-base/70 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-cyan-400/60 hover:text-cyan-300"
+              className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-3 text-sm font-medium text-[#C2C4D2] transition hover:border-cyan/40 hover:bg-[#1A1B2B] hover:text-white"
             >
               {item.label}
             </Link>

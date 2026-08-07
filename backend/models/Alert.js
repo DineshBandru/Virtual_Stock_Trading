@@ -7,6 +7,8 @@ const alertSchema = new mongoose.Schema(
     targetPrice: { type: Number, required: true },
     condition: { type: String, enum: ["above", "below"], required: true },
     triggered: { type: Boolean, default: false },
+    triggeredAt: { type: Date },
+    triggeredPrice: { type: Number },
     createdAt: { type: Date, default: Date.now }
   },
   { timestamps: true }

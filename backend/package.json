@@ -5,7 +5,11 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "sync:nse": "node scripts/syncNseInstruments.js",
+    "test:orders": "node --test tests/orderService.execution.test.js",
+    "audit:trading": "node scripts/auditTrading.js",
+    "reconcile:legacy": "node scripts/reconcileLegacyTransactions.js"
   },
   "dependencies": {
     "axios": "^1.7.4",

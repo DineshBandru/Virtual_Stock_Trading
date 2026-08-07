@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
+import socket from "../utils/socket";
 
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -44,8 +45,8 @@ const getRealizedPnL = (transaction) => {
 };
 
 const typeTone = {
-  BUY: "border-cyan-400/40 bg-cyan-400/10 text-cyan-300",
-  SELL: "border-red-400/40 bg-red-400/10 text-red-300"
+  BUY: "border-cyan/30 bg-cyan/10 text-cyan",
+  SELL: "border-red-500/30 bg-red-500/10 text-red-400"
 };
 
 const Transactions = () => {
@@ -77,8 +78,19 @@ const Transactions = () => {
 
     loadTransactions();
 
+    const refreshTransactions = () => {
+      loadTransactions();
+    };
+
+    socket.on("transaction-update", refreshTransactions);
+    socket.on("order-update", refreshTransactions);
+    socket.on("connect", refreshTransactions);
+
     return () => {
       active = false;
+      socket.off("transaction-update", refreshTransactions);
+      socket.off("order-update", refreshTransactions);
+      socket.off("connect", refreshTransactions);
     };
   }, []);
 
@@ -118,7 +130,7 @@ const Transactions = () => {
           { label: "Total Turnover", value: formatCurrency(totals.turnover) }
         ].map((item) => (
           <GlassPanel key={item.label}>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-slate-400">{item.label}</p>
+            <p className="text-[11px] uppercase text-[#A1A1B5]">{item.label}</p>
             <p className="mt-3 text-2xl font-semibold text-white md:text-3xl">{item.value}</p>
           </GlassPanel>
         ))}
@@ -133,14 +145,14 @@ const Transactions = () => {
       <GlassPanel>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Ledger</p>
+            <p className="text-xs uppercase text-[#A1A1B5]">Ledger</p>
             <h3 className="mt-2 text-lg font-semibold text-white">Executed transactions</h3>
           </div>
-          <span className="text-xs text-slate-400">{transactions.length} records</span>
+          <span className="text-xs text-[#A1A1B5]">{transactions.length} records</span>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-borderGlow/60">
-          <div className="hidden bg-base/80 px-4 py-3 text-[11px] uppercase tracking-[0.25em] text-slate-400 lg:grid lg:grid-cols-12 lg:gap-3">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+          <div className="hidden bg-[#080910] px-4 py-3 text-[11px] uppercase text-[#A1A1B5] lg:grid lg:grid-cols-12 lg:gap-3">
             <span className="lg:col-span-2">Stock</span>
             <span className="lg:col-span-1">Type</span>
             <span className="lg:col-span-1 text-right">Qty</span>
@@ -150,7 +162,7 @@ const Transactions = () => {
             <span className="lg:col-span-2 text-right">Date</span>
           </div>
 
-          <div className="divide-y divide-borderGlow/50">
+          <div className="divide-y divide-white/10">
             {loading ? (
               Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="px-4 py-4">
@@ -158,7 +170,7 @@ const Transactions = () => {
                 </div>
               ))
             ) : transactions.length === 0 ? (
-              <div className="px-4 py-12 text-center text-sm text-slate-400">
+              <div className="px-4 py-12 text-center text-sm text-[#A1A1B5]">
                 No transactions found. Executed buy and sell orders will appear here.
               </div>
             ) : (
@@ -166,30 +178,30 @@ const Transactions = () => {
                 const realizedPnL = getRealizedPnL(transaction);
                 const pnlTone =
                   realizedPnL === null
-                    ? "text-slate-400"
+                    ? "text-[#A1A1B5]"
                     : realizedPnL >= 0
-                      ? "text-emerald-300"
-                      : "text-red-300";
+                      ? "text-emerald-400"
+                      : "text-red-400";
 
                 return (
                   <div
                     key={transaction._id}
-                    className="grid grid-cols-2 gap-3 px-4 py-4 text-sm transition hover:bg-base/60 lg:grid-cols-12 lg:items-center"
+                    className="grid grid-cols-2 gap-3 px-4 py-4 text-sm transition hover:bg-[#080910] lg:grid-cols-12 lg:items-center"
                   >
                     <div className="col-span-2 lg:col-span-2">
                       <p className="font-semibold text-white">{transaction.symbol || "-"}</p>
-                      <p className="mt-1 line-clamp-1 text-xs text-slate-400">
+                      <p className="mt-1 line-clamp-1 text-xs text-[#A1A1B5]">
                         {transaction.companyName || "Company not available"}
                       </p>
                     </div>
 
                     <div className="lg:col-span-1">
-                      <span className="mb-1 block text-[11px] uppercase tracking-[0.2em] text-slate-500 lg:hidden">
+                      <span className="mb-1 block text-[11px] uppercase text-[#6F7487] lg:hidden">
                         Type
                       </span>
                       <span
                         className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
-                          typeTone[transaction.type] || "border-borderGlow/60 bg-base/70 text-slate-300"
+                          typeTone[transaction.type] || "border-white/10 bg-[#080910] text-[#C2C4D2]"
                         }`}
                       >
                         {transaction.type || "-"}
@@ -197,35 +209,35 @@ const Transactions = () => {
                     </div>
 
                     <div className="text-right lg:col-span-1">
-                      <span className="mb-1 block text-[11px] uppercase tracking-[0.2em] text-slate-500 lg:hidden">
+                      <span className="mb-1 block text-[11px] uppercase text-[#6F7487] lg:hidden">
                         Qty
                       </span>
                       <span className="font-medium text-white">{formatQuantity(transaction.quantity)}</span>
                     </div>
 
                     <div className="text-left lg:col-span-2 lg:text-right">
-                      <span className="mb-1 block text-[11px] uppercase tracking-[0.2em] text-slate-500 lg:hidden">
+                      <span className="mb-1 block text-[11px] uppercase text-[#6F7487] lg:hidden">
                         Price
                       </span>
-                      <span className="text-slate-300">{formatCurrency(transaction.price)}</span>
+                      <span className="text-[#C2C4D2]">{formatCurrency(transaction.price)}</span>
                     </div>
 
                     <div className="text-right lg:col-span-2">
-                      <span className="mb-1 block text-[11px] uppercase tracking-[0.2em] text-slate-500 lg:hidden">
+                      <span className="mb-1 block text-[11px] uppercase text-[#6F7487] lg:hidden">
                         Amount
                       </span>
                       <span className="font-semibold text-white">{formatCurrency(transaction.total)}</span>
                     </div>
 
                     <div className={`text-left font-semibold lg:col-span-2 lg:text-right ${pnlTone}`}>
-                      <span className="mb-1 block text-[11px] uppercase tracking-[0.2em] text-slate-500 lg:hidden">
+                      <span className="mb-1 block text-[11px] uppercase text-[#6F7487] lg:hidden">
                         Realized P/L
                       </span>
                       {realizedPnL === null ? "-" : formatCurrency(realizedPnL)}
                     </div>
 
-                    <div className="text-right text-slate-400 lg:col-span-2">
-                      <span className="mb-1 block text-[11px] uppercase tracking-[0.2em] text-slate-500 lg:hidden">
+                    <div className="text-right text-[#A1A1B5] lg:col-span-2">
+                      <span className="mb-1 block text-[11px] uppercase text-[#6F7487] lg:hidden">
                         Date
                       </span>
                       {formatDateTime(transaction.timestamp || transaction.createdAt)}
