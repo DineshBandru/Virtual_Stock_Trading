@@ -1,131 +1,146 @@
-# Virtual Stock Trading Platform
+# Trade Abhyas
 
-Production-grade MERN virtual trading terminal for students and beginners to practice with virtual capital. Built for real-time market data, AI signals, and trading competitions.
+Virtual Stock Trading Platform
 
-## Features
-- JWT authentication with HTTP-only cookies
-- Virtual wallet and live portfolio valuation
-- Real-time stock quotes with Socket.IO
-- Candlestick charts with TradingView lightweight-charts
-- Rule-based AI signal (SMA/RSI)
-- Watchlist, alerts, and notifications
-- Leaderboards and trading competitions
-- Admin panel with platform statistics
+Trade Abhyas is a paper-trading / virtual-trading platform for learning stock-market workflows with virtual capital. It is not a real brokerage platform and does not execute real stock-exchange orders, collect bank details, or perform real-money settlement.
 
-## Tech Stack
-Frontend: React 18, Vite, Tailwind CSS, Framer Motion, Recharts, lightweight-charts
-Backend: Node.js, Express, MongoDB, Mongoose, Socket.IO
+## Architecture
 
-## Folder Structure
-- apps/website: React customer-facing trading app
-- apps/admin: React admin console
-- backend: Express API, Socket.IO server, and MongoDB models/services
+```text
+apps/website -> User trading application
+apps/admin   -> Separate admin control panel
+backend      -> Express, MongoDB, and Socket.IO backend
+docs         -> Project documentation, screenshots, and report artifacts
+```
 
-## Environment Variables
-Create .env files based on .env.example.
+## Technology Stack
 
-Root .env.example:
-- MONGO_URI
-- JWT_SECRET
-- FINNHUB_API_KEY
-- NEWS_API_KEY
-- PORT
-- CLIENT_URL
-- VITE_API_URL
+- React, Vite, Tailwind CSS
+- Node.js, Express.js
+- MongoDB Atlas, Mongoose
+- Socket.IO
+- JWT access tokens and refresh-token sessions
+- bcrypt password hashing
+- Yahoo Finance based market utilities and NSE instrument catalogue
 
-Client .env.example:
-- VITE_API_URL
+## Prerequisites
 
-## Install & Run
-1. Install root dependencies:
-   - npm install
-2. Install backend dependencies:
-   - npm --prefix backend install
-3. Install website dependencies:
-   - npm --prefix apps/website install
-4. Install admin dependencies:
-   - npm --prefix apps/admin install
-5. Start dev servers:
-   - npm run dev
+- Node.js and npm
+- MongoDB Atlas connection string
+- Optional market/news provider keys for enhanced data feeds
 
-Local URLs:
-- Website: http://localhost:3000
-- Admin: http://localhost:3001
-- Backend API: http://localhost:5000
+## Installation
 
-## Scripts
-- npm run dev: Concurrently starts backend, website, and admin dev servers.
-- npm start: Starts the backend server only.
-- npm --prefix apps/website run dev: Starts the website Vite dev server.
-- npm --prefix apps/admin run dev: Starts the admin Vite dev server.
-- node backend/seed.js: Seeds database with dummy data.
+```powershell
+npm install
+npm --prefix backend install
+npm --prefix apps/website install
+npm --prefix apps/admin install
+```
 
-## API Endpoints
-Auth:
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/logout
-- GET /api/auth/me
-- PUT /api/auth/tour
+## Environment Configuration
 
-Stocks:
-- GET /api/stocks/search?q=SYMBOL
-- GET /api/stocks/:symbol
-- GET /api/stocks/:symbol/history?period=1M
-- GET /api/stocks/trending
+Copy example files and fill local values. Never commit real `.env` files.
 
-Trading:
-- POST /api/trade/buy
-- POST /api/trade/sell
+- Root/backend runtime: `.env.example`
+- Backend production reference: `backend/.env.example`
+- Website: `apps/website/.env.example`
+- Admin: `apps/admin/.env.example`
 
-Portfolio:
-- GET /api/portfolio
-- GET /api/portfolio/analytics
+Required backend values include:
 
-Transactions:
-- GET /api/transactions
-- GET /api/transactions/export
+- `MONGO_URI`
+- `JWT_SECRET`
+- `CLIENT_URL`
+- `ADMIN_URL`
 
-Watchlist:
-- GET /api/watchlist
-- POST /api/watchlist/add
-- DELETE /api/watchlist/remove/:symbol
+Production email provider credentials and deployment domains are intentionally deferred until deployment.
 
-Alerts:
-- GET /api/alerts
-- POST /api/alerts
-- DELETE /api/alerts/:id
+## Development Services
 
-Leaderboard:
-- GET /api/leaderboard
+Start all local services:
 
-Competitions:
-- GET /api/competitions
-- POST /api/competitions/join/:id
-- GET /api/competitions/:id/leaderboard
+```powershell
+npm run dev
+```
 
-News:
-- GET /api/news
-- GET /api/news/:symbol
+Local ports:
 
-Admin:
-- GET /api/admin/users
-- GET /api/admin/transactions
-- POST /api/admin/competitions
-- GET /api/admin/stats
+```text
+Backend  -> http://localhost:5500
+Website  -> http://localhost:3010
+Admin    -> http://localhost:3016
+```
 
-## Deployment
+Individual services:
 
-### Frontend (Vercel)
-The apps/website directory contains a vercel.json optimized for Vite SPAs.
-1. Import the repository into Vercel and set the Root Directory to apps/website.
-2. Add necessary frontend Environment Variables (such as VITE_API_URL pointing to the Render backend).
+```powershell
+npm --prefix backend run dev
+npm --prefix apps/website run dev
+npm --prefix apps/admin run dev
+```
 
-### Backend (Render)
-The backend directory includes a render.yaml blueprint.
-1. Connect Render to the repository and select the backend directory as a Web Service.
-2. Build Command: npm install, Start Command: node index.js.
-3. Fill missing environment variables inside the Dashboard (MONGO_URI, JWT_SECRET).
+## Health Checks
 
-## Screenshots
-Add screenshots of the dashboard, stock detail, and admin panel here.
+```text
+GET /api/health -> process running
+GET /api/ready  -> application ready and database connected
+```
+
+## NSE Instrument Synchronization
+
+```powershell
+npm --prefix backend run sync:nse
+```
+
+This command populates or updates the NSE equity instrument catalogue. It is designed to be safe to rerun.
+
+## Testing and Audit
+
+```powershell
+npm --prefix backend run test:orders
+npm --prefix backend run audit:trading
+```
+
+- `test:orders` uses the dedicated `test` database only. The test guard refuses to run against the main `vstp` database.
+- `audit:trading` is a read-only financial consistency audit.
+
+Current verified result:
+
+```text
+Order service tests: 10/10 passed
+Financial integrity audit: clean
+```
+
+## Admin Provisioning
+
+Create a normal user account first, then promote that existing user with the CLI-only script:
+
+```powershell
+npm --prefix backend run admin:promote -- --email user@example.com
+```
+
+This script:
+
+- requires an existing user
+- changes only `role: user -> admin`
+- does not create or accept passwords
+- does not expose password hashes or tokens
+- is not available through any public HTTP endpoint
+
+Do not hardcode admin credentials in source files or documentation.
+
+## Database Operational Notes
+
+Expected database separation:
+
+```text
+vstp -> application/main database
+test -> automated order tests
+```
+
+Before production migrations or destructive maintenance, take an Atlas backup or export. Legacy reconciliation tooling is retained for traceability; do not rerun `reconcile:legacy --apply` unless a future audit explicitly requires it.
+
+## Production Notes
+
+Production configuration must provide secure environment values for MongoDB, JWT, frontend origins, cookies, and email delivery. Deployment, production domains, and production Resend/Brevo configuration are deferred and should be completed as a separate release step.

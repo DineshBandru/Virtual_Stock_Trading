@@ -59,7 +59,7 @@ const sensitiveLimiter = disableRateLimit
   ? (req, res, next) => next()
   : rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
 
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "1mb" }));
 
 // Apply authLimiter to auth endpoints
 app.use('/api/auth', authLimiter);

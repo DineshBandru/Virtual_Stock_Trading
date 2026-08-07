@@ -1,6 +1,8 @@
 node_modules/
 
 .env
+.env.*
+!.env.example
 .env.local
 .env.production
 client/.env
@@ -17,9 +19,13 @@ apps/admin/.env.production
 
 dist/
 build/
+coverage/
 
 .vscode/
 
-*.log.env
-.runtime-*.log
-.runtime-dev-*.log
+*.log
+.runtime-*
+.tmp_*
+tmp/
+temp/
+test-output/

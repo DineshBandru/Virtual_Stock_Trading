@@ -1,0 +1,261 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Trade Abhyas Mini Project Report</title><style>@page{size:A4;margin:2.5cm 2.3cm 2.5cm 3cm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#111}h1{font-size:16pt;text-align:center;page-break-before:always}h2{font-size:14pt;margin-top:18pt}.title h1{page-break-before:auto;font-size:24pt}.title{text-align:center;margin-top:90pt}.page{page-break-after:always}table{width:100%;border-collapse:collapse;margin:10pt 0 16pt}th,td{border:1px solid #777;padding:6pt;vertical-align:top}th{background:#f0f2f5}figure{page-break-inside:avoid;text-align:center;margin:12pt 0 18pt}figcaption{font-style:italic;font-size:10pt;margin-top:6pt}img{max-width:100%;height:auto}.screenshot{max-width:16cm}.mobile{max-width:7cm}.header{position:running(header)}</style></head><body>
+<section class='title page'><h1>TRADE ABHYAS</h1><h2>Virtual Stock Trading Platform</h2><p>A Mini Project Report</p><p>Submitted in partial fulfillment of the requirements for the award of the degree of Bachelor of Technology in <b>&lt;DEPARTMENT NAME&gt;</b></p><p><b>Submitted by</b><br>&lt;STUDENT NAME&gt;<br>Roll Number: &lt;ROLL NUMBER&gt;<br>Register Number: &lt;REGISTER NUMBER&gt;</p><p><b>Under the guidance of</b><br>&lt;GUIDE NAME&gt;<br>&lt;GUIDE DESIGNATION&gt;</p><p>&lt;COLLEGE NAME&gt;<br>&lt;UNIVERSITY NAME&gt;<br>&lt;ACADEMIC YEAR&gt;</p></section>
+<h1>CERTIFICATE</h1><p>This is to certify that the Mini Project report entitled <b>Trade Abhyas - Virtual Stock Trading Platform</b> is a bonafide work carried out by &lt;STUDENT NAME&gt;, Roll Number &lt;ROLL NUMBER&gt;, Register Number &lt;REGISTER NUMBER&gt;, in partial fulfillment of the requirements for the award of the degree of Bachelor of Technology in &lt;DEPARTMENT NAME&gt; during the academic year &lt;ACADEMIC YEAR&gt;.</p><table><tr><th>Role</th><th>Name and Signature</th></tr><tr><td>Guide</td><td>&lt;GUIDE NAME&gt;</td></tr><tr><td>Head of Department</td><td>&lt;HEAD OF DEPARTMENT&gt;</td></tr><tr><td>Place and Date</td><td>&lt;PLACE&gt;, &lt;DATE&gt;</td></tr></table>
+<h1>DECLARATION</h1><p>I hereby declare that the Mini Project report entitled <b>Trade Abhyas - Virtual Stock Trading Platform</b> submitted to &lt;COLLEGE NAME&gt; is a record of original work carried out by me under the guidance of &lt;GUIDE NAME&gt;. This work is submitted in partial fulfillment of the requirements for the award of the Bachelor of Technology degree.</p><p>Signature of Student: __________________________<br>Name: &lt;STUDENT NAME&gt;<br>Date: &lt;DATE&gt;</p>
+<h1>ACKNOWLEDGEMENT</h1><p>I express my sincere gratitude to &lt;COLLEGE NAME&gt; and &lt;DEPARTMENT NAME&gt; for providing the opportunity to complete this Mini Project. I am thankful to &lt;GUIDE NAME&gt;, &lt;GUIDE DESIGNATION&gt;, for valuable guidance, encouragement, and support throughout the project.</p>
+<h1>ABSTRACT</h1><p>Trade Abhyas is a virtual stock trading platform developed as a B.Tech Mini Project to help students and beginner investors understand stock-market workflows without risking real money. The project addresses the need for a safe paper-trading environment where users can search NSE equity instruments, view market information, place simulated orders, and track portfolio performance using virtual funds.</p><p>The system uses a MERN-style architecture with a React user website, a separate React admin application, a Node.js and Express backend, MongoDB Atlas persistence, JWT authentication, refresh-token sessions, and Socket.IO real-time updates. The trading engine supports Market, Limit, Stop-Loss, and Stop-Limit virtual orders. Automated testing completed with 10 passed order-service tests and a clean financial integrity audit.</p>
+<h1>TABLE OF CONTENTS</h1><ol><li>Introduction</li><li>Problem Statement and Objectives</li><li>Existing and Proposed System</li><li>Requirements and Technology Stack</li><li>System Architecture</li><li>Module Description</li><li>Database Design</li><li>Trading Engine Design</li><li>Portfolio and Financial Accounting</li><li>Concurrency and Financial Integrity</li><li>Security Design</li><li>Implementation Screenshots</li><li>Testing and Results</li><li>Limitations and Future Scope</li><li>Conclusion</li><li>References</li></ol>
+<h1>LIST OF FIGURES</h1><ol><li>Figure 5.1 - System Architecture</li><li>Figure 7.1 - Database ER Diagram</li><li>Figure 8.1 - Order Lifecycle</li><li>Figures 12.1 to 12.12 - Implementation Screenshots</li></ol><h1>LIST OF TABLES</h1><ol><li>Table 3.1 - Existing and Proposed System Comparison</li><li>Table 4.1 - Software Requirements</li><li>Table 6.1 - Module Summary</li><li>Table 10.1 - Order Service Test Result</li><li>Table 13.1 - Testing Summary</li></ol>
+<h1>CHAPTER 1 - INTRODUCTION</h1>
+<p>Stock-market education requires both conceptual learning and practical exposure. Many beginners understand definitions such as buy, sell, portfolio, and profit/loss, but they do not get a safe place to observe order behavior and account changes. Trade Abhyas solves this by offering a virtual trading environment in which all financial values are simulated.</p>
+<p>Trade Abhyas is a virtual stock trading platform developed as a B.Tech Mini Project. The system provides registration, login, stock search, market information, order placement, portfolio tracking, positions, transactions, watchlist, alerts, competitions, settings, and an admin monitoring system.</p>
+<p>The project scope is limited to educational paper trading. It does not perform real stock-exchange execution, bank settlement, demat account integration, PAN verification, margin trading, or derivatives trading.</p>
+<h1>CHAPTER 2 - PROBLEM STATEMENT AND OBJECTIVES</h1>
+<p>Students and beginners often lack a practical platform to learn stock-market mechanics safely. Static study material and simple price-monitoring applications do not show realistic order lifecycle, portfolio changes, and financial integrity rules.</p>
+<p>Primary objectives include simulating equity trading using virtual capital, supporting realistic order types, maintaining accurate portfolio/accounting records, providing market-data-based stock information, and protecting trading integrity under concurrent order processing.</p>
+<p>Secondary objectives include watchlists, price alerts, competitions, role-protected administration, password recovery, secure sessions, local validation, and future production readiness.</p>
+<h1>CHAPTER 3 - EXISTING AND PROPOSED SYSTEM</h1>
+<p>Common approaches include static learning websites, basic market-price trackers, and simplified paper-trading demos. These approaches often lack a realistic order lifecycle, transaction-safe accounting, concurrency protection, and administrator monitoring.</p>
+<p>Trade Abhyas proposes a full-stack virtual trading platform with market-linked NSE instruments, virtual capital, realistic order types, persistent holdings, P&amp;L calculation, real-time updates, admin monitoring, and audit-based financial integrity checks.</p>
+<p><b>Table 3.1 - Existing and Proposed System Comparison</b></p><table><tr>
+<th>Aspect</th>
+<th>Existing/Common Systems</th>
+<th>Trade Abhyas</th>
+</tr>
+<tr>
+<td>Learning mode</td>
+<td>Mostly static or simplified</td>
+<td>Interactive paper trading</td>
+</tr>
+<tr>
+<td>Order lifecycle</td>
+<td>Limited or absent</td>
+<td>Market, Limit, Stop-Loss, Stop-Limit</td>
+</tr>
+<tr>
+<td>Portfolio accounting</td>
+<td>Basic or unavailable</td>
+<td>Balance, holdings, weighted average, P&amp;L</td>
+</tr>
+<tr>
+<td>Administration</td>
+<td>Often not included</td>
+<td>Separate admin dashboard</td>
+</tr>
+<tr>
+<td>Integrity controls</td>
+<td>Usually limited</td>
+<td>Transactions, locks, retries, audit checks</td>
+</tr>
+<tr>
+<td>Real-money execution</td>
+<td>Not applicable</td>
+<td>Not included; virtual only</td>
+</tr>
+</table>
+<h1>CHAPTER 4 - REQUIREMENTS AND TECHNOLOGY STACK</h1>
+<p>Functional requirements include authentication, stock search, stock detail, charting, order placement, portfolio, positions, transactions, watchlist, alerts, competitions, settings, password recovery, and admin monitoring.</p>
+<p>Non-functional requirements include security, reliability, consistency, performance, responsiveness, maintainability, scalability, data integrity, and availability.</p>
+<p>The verified stack includes React, Vite, Tailwind CSS, Node.js, Express.js, MongoDB Atlas, Mongoose, JWT, bcrypt, Socket.IO, Yahoo Finance based market utilities, an NSE instrument catalogue, and Resend-compatible email integration for password reset delivery configuration.</p>
+<p><b>Table 4.1 - Software Requirements</b></p><table><tr>
+<th>Layer</th>
+<th>Technology</th>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>React, Vite, Tailwind CSS</td>
+</tr>
+<tr>
+<td>Backend</td>
+<td>Node.js, Express.js</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>MongoDB Atlas, Mongoose</td>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>JWT, refresh-token sessions, bcrypt</td>
+</tr>
+<tr>
+<td>Real time</td>
+<td>Socket.IO</td>
+</tr>
+<tr>
+<td>Market data</td>
+<td>Yahoo Finance based market utility and NSE instrument catalogue</td>
+</tr>
+<tr>
+<td>Email</td>
+<td>Resend-compatible password reset email integration; production credentials deferred</td>
+</tr>
+</table>
+<h1>CHAPTER 5 - SYSTEM ARCHITECTURE</h1>
+<p>Trade Abhyas uses a MERN-style architecture with two React applications and one Express backend. The user website communicates with the backend through REST APIs and Socket.IO. The admin application communicates with the same backend through REST APIs and is protected by admin authorization.</p>
+<p>The backend contains authentication, trading, market data, portfolio, alerts, admin APIs, and real-time services. External market information is used only for simulation and display; virtual orders are stored and processed inside the application database.</p>
+<figure><img src='assets/system-architecture.png'><figcaption>Figure 5.1 - System Architecture</figcaption></figure>
+<h1>CHAPTER 6 - MODULE DESCRIPTION</h1>
+<p>The major modules are Authentication, User Account, NSE Instrument Search, Market Data, Stock Detail and Historical Charts, Trading/Order Management, Portfolio, Positions, Transactions, Watchlist, Alerts, Real-Time Socket.IO Updates, Competitions, Administration, and Password Recovery.</p>
+<p>Each module is implemented around clear data ownership boundaries. User-facing screens do not mutate financial records directly. Trading changes are routed through backend services to maintain consistency.</p>
+<p><b>Table 6.1 - Module Summary</b></p><table><tr>
+<th>Module</th>
+<th>Purpose</th>
+<th>Input</th>
+<th>Output</th>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>Secure access</td>
+<td>Credentials</td>
+<td>Authenticated session</td>
+</tr>
+<tr>
+<td>User Account</td>
+<td>Profile maintenance</td>
+<td>Name, email, mobile, preferences</td>
+<td>Updated profile</td>
+</tr>
+<tr>
+<td>NSE Instrument Search</td>
+<td>Stock discovery</td>
+<td>Search query</td>
+<td>Matching symbols</td>
+</tr>
+<tr>
+<td>Market Data</td>
+<td>Quote/history display</td>
+<td>Symbol/timeframe</td>
+<td>Market information</td>
+</tr>
+<tr>
+<td>Trading/Orders</td>
+<td>Virtual order placement</td>
+<td>Symbol, side, quantity, type</td>
+<td>Order status</td>
+</tr>
+<tr>
+<td>Portfolio</td>
+<td>Holding management</td>
+<td>Executed orders</td>
+<td>Holdings and value</td>
+</tr>
+<tr>
+<td>Transactions</td>
+<td>Executed trade ledger</td>
+<td>Executed order</td>
+<td>Transaction record</td>
+</tr>
+<tr>
+<td>Watchlist</td>
+<td>Track selected stocks</td>
+<td>Symbols/lists</td>
+<td>Personal watchlist</td>
+</tr>
+<tr>
+<td>Alerts</td>
+<td>Price-level tracking</td>
+<td>Symbol, target, condition</td>
+<td>Alert status</td>
+</tr>
+<tr>
+<td>Administration</td>
+<td>Monitoring</td>
+<td>Admin API requests</td>
+<td>Admin dashboards</td>
+</tr>
+</table>
+<h1>CHAPTER 7 - DATABASE DESIGN</h1>
+<p>MongoDB stores application data through Mongoose models. The database stores only virtual trading and account data needed by the platform. It does not store bank account details, PAN card details, demat credentials, or real-money payment data.</p>
+<p>Important collections include users, refreshTokens, instruments, orders, transactions, portfolios, watchlists, alerts, and competitions. Key constraints include unique email, unique transaction per order, and unique portfolio row per user and symbol.</p>
+<figure><img src='assets/database-er.png'><figcaption>Figure 7.1 - Database ER Diagram</figcaption></figure>
+<h1>CHAPTER 8 - TRADING ENGINE DESIGN</h1>
+<p>The trading engine simulates stock order execution using virtual funds and holdings. It supports Market, Limit, Stop-Loss, and Stop-Limit orders. The engine checks market session, quote validity, user funds, user holdings, and order lifecycle conditions before changing financial records.</p>
+<p>A Market order executes during active market hours when an executable quote is available. A Limit order executes only when the market price satisfies the configured limit condition. A Stop-Loss order remains pending until its trigger price is reached. A Stop-Limit order moves from Pending to Triggered and then Executes only when both trigger and limit conditions are satisfied.</p>
+<p>The market-session service uses Asia/Kolkata and the configured session of 09:15 to 15:30 on weekdays, excluding configured NSE holidays. Stale, missing, invalid, unavailable, or mismatched quotes are rejected or skipped.</p>
+<figure><img src='assets/order-lifecycle.png'><figcaption>Figure 8.1 - Order Lifecycle</figcaption></figure>
+<h1>CHAPTER 9 - PORTFOLIO AND FINANCIAL ACCOUNTING</h1>
+<p>Portfolio accounting is updated only after an order executes. A BUY order debits virtual cash and increases holdings. A SELL order credits virtual cash and reduces or closes holdings.</p>
+<p>Weighted Average Price = ((Old Quantity x Old Average Price) + (New Quantity x Buy Price)) / (Old Quantity + New Quantity). Unrealized P&amp;L = (Current Market Price - Average Price) x Quantity. Realized P&amp;L = (Sell Price - Average Buy Price) x Sold Quantity.</p>
+<p>Partial selling reduces the holding quantity while retaining the existing average buy price for the remaining holding. Full selling removes the holding row and records the transaction history.</p>
+<h1>CHAPTER 10 - CONCURRENCY AND FINANCIAL INTEGRITY</h1>
+<p>Trading systems must protect users from duplicate execution, negative balances, and negative holdings. Trade Abhyas includes concurrency controls in the virtual order engine.</p>
+<p>MongoDB transactions group order, transaction, balance, and portfolio changes. Atomic balance mutation prevents overspending during concurrent BUY orders. Latest holding revalidation prevents overselling during concurrent SELL orders. Processing tokens prevent duplicate order claims.</p>
+<p>The order service automated test suite completed with Total: 10, Passed: 10, Failed: 0. Coverage includes Market, Limit, Stop-Loss, Stop-Limit, cancellation, rejected orders, concurrent BUY/SELL, duplicate processing, and stale recovery.</p>
+<p><b>Table 10.1 - Order Service Test Result</b></p><table><tr>
+<th>Metric</th>
+<th>Result</th>
+</tr>
+<tr>
+<td>Total tests</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Passed</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Failed</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Coverage</td>
+<td>Market, Limit, Stop-Loss, Stop-Limit, cancellation, rejected orders, concurrent BUY/SELL, duplicate processing, stale recovery</td>
+</tr>
+</table>
+<h1>CHAPTER 11 - SECURITY DESIGN</h1>
+<p>Passwords are hashed using bcrypt before storage. JWT access tokens and refresh sessions are stored through HTTP-only cookies. Refresh tokens are stored as hashes in the database. Admin APIs require authenticated users with the admin role.</p>
+<p>Password reset uses hashed reset tokens, expiry, and session revocation after reset. CORS is configured through allowed frontend origins. Production cookie configuration supports secure and SameSite settings. Secrets such as database strings, JWT secrets, and email provider keys are supplied through environment variables.</p>
+<p>Because Trade Abhyas is a virtual trading platform, it does not ask for bank credentials, PAN card details, demat account details, brokerage credentials, UPI information, or real-money settlement data.</p>
+<h1>CHAPTER 13 - TESTING AND RESULTS</h1>
+<p>Testing covered authentication, admin authorization, trading behavior, concurrency, audit checks, local API flows, Socket.IO behavior, watchlist, alerts, password reset, and frontend builds.</p>
+<p>Authentication verification included registration, login, invalid login, session persistence, refresh, and logout. Admin authorization verification included admin authenticated -&gt; 200, normal user authenticated -&gt; 403, and logged out -&gt; 401.</p>
+<p>Financial integrity audit result: executed orders without transactions 0; transactions without valid executed orders 0; duplicate transactions 0; negative balances 0; negative holdings 0; duplicate holdings 0; portfolio/position mismatches 0; invalid financial mutations 0; invalid symbols 0; ownership mismatches 0; status issues 0.</p>
+<p><b>Table 13.1 - Testing Summary</b></p><table><tr>
+<th>Area</th>
+<th>Verified Result</th>
+</tr>
+<tr>
+<td>Authentication</td>
+<td>Registration, login, invalid login, session persistence, refresh, logout</td>
+</tr>
+<tr>
+<td>Admin authorization</td>
+<td>Admin authenticated -&gt; 200; normal user -&gt; 403; logged out -&gt; 401</td>
+</tr>
+<tr>
+<td>Trading</td>
+<td>BUY, SELL, Limit, Stop-Loss, Stop-Limit, oversell, insufficient balance, market closed, cancellation</td>
+</tr>
+<tr>
+<td>Concurrency</td>
+<td>10/10 order-service tests passed</td>
+</tr>
+<tr>
+<td>Financial audit</td>
+<td>Zero issues across executed orders, transactions, balances, holdings, duplicates, ownership, and status checks</td>
+</tr>
+<tr>
+<td>Local E2E</td>
+<td>Auth, search, quote/chart, BUY/SELL, portfolio, orders, transactions, Socket.IO, watchlist, alerts, password reset, admin authorization</td>
+</tr>
+</table>
+<h1>CHAPTER 14 - LIMITATIONS AND FUTURE SCOPE</h1>
+<p>Current limitations include paper trading only, no real stock exchange execution, NSE equity-focused scope, no derivatives, no margin/leverage, dependence on third-party market data, quote timing differences from exchange-grade feeds, required NSE holiday configuration, deferred production deployment, and deferred production transactional-email credentials.</p>
+<p>Future scope includes production deployment, transactional email configuration, mobile application, advanced analytics, expanded competition features, educational lessons, additional market segments, improved market-data infrastructure, and advanced portfolio insights.</p>
+<h1>CHAPTER 15 - CONCLUSION</h1>
+<p>Trade Abhyas successfully demonstrates a complete virtual stock trading platform suitable for a B.Tech Mini Project. It combines realistic paper trading workflows, NSE market information, secure authentication, realistic order lifecycles, accurate portfolio accounting, real-time updates, financial integrity checks, concurrency-safe execution, and administrative monitoring.</p>
+<p>The project avoids real-money brokerage claims and remains focused on educational paper trading. Testing and audit results confirm that the core trading flow is technically consistent and ready for academic demonstration.</p>
+<h1>CHAPTER 12 - IMPLEMENTATION SCREENSHOTS</h1>
+<figure><img class='screenshot' src='../screenshots/01-login.png'><figcaption>Figure 12.1 - Trade Abhyas Login Interface</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/03-dashboard.png'><figcaption>Figure 12.2 - User Dashboard</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/04-stock-search.png'><figcaption>Figure 12.3 - NSE Stock Search</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/05-stock-detail.png'><figcaption>Figure 12.4 - Stock Detail and Market Information</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/07-buy-order-ticket.png'><figcaption>Figure 12.5 - Virtual Buy Order Interface</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/09-portfolio.png'><figcaption>Figure 12.6 - User Portfolio</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/11-orders.png'><figcaption>Figure 12.7 - Order Lifecycle and History</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/12-transactions.png'><figcaption>Figure 12.8 - Executed Transaction History</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/13-watchlist.png'><figcaption>Figure 12.9 - Watchlist</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/18-admin-dashboard.png'><figcaption>Figure 12.10 - Administrative Dashboard</figcaption></figure>
+<figure><img class='screenshot' src='../screenshots/20-admin-orders.png'><figcaption>Figure 12.11 - Administrative Order Monitoring</figcaption></figure>
+<figure><img class='mobile' src='../screenshots/23-mobile-stock-detail.png'><figcaption>Figure 12.12 - Mobile Responsive Stock Detail</figcaption></figure>
+<h1>REFERENCES</h1><ol><li>React Documentation - https://react.dev/</li><li>Vite Documentation - https://vitejs.dev/</li><li>Node.js Documentation - https://nodejs.org/</li><li>Express.js Documentation - https://expressjs.com/</li><li>MongoDB Documentation - https://www.mongodb.com/docs/</li><li>Mongoose Documentation - https://mongoosejs.com/docs/</li><li>Socket.IO Documentation - https://socket.io/docs/</li><li>JSON Web Token Introduction - https://jwt.io/introduction</li><li>National Stock Exchange of India - https://www.nseindia.com/</li></ol></body></html>
