@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CircleAlert, RefreshCcw } from "lucide-react";
+import { BookOpenCheck, CircleAlert, RefreshCcw, Save, X } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts";
 import GlassPanel from "../components/GlassPanel";
+import HelpTooltip from "../components/HelpTooltip";
 import PageHeader from "../components/PageHeader";
+import RiskPositionCalculator from "../components/RiskPositionCalculator";
 import { Skeleton } from "../components/Skeleton";
-import PnlAreaChart from "../components/charts/PnlAreaChart";
-import SectorPieChart from "../components/charts/SectorPieChart";
-import useLivePrices from "../hooks/useLivePrices";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
 import socket from "../utils/socket";
-
-const STARTING_CAPITAL = 1000000;
 
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -18,105 +24,41 @@ const money = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2
 });
 
-const number = new Intl.NumberFormat("en-IN", {
-  maximumFractionDigits: 2
-});
+const formatCurrency = (value) =>
+  Number.isFinite(Number(value)) ? money.format(Number(value)) : "Unavailable";
 
-const formatCurrency = (value) => money.format(Number(value) || 0);
+const formatPercent = (value) =>
+  Number.isFinite(Number(value)) ? `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(2)}%` : "Unavailable";
 
-const formatNumber = (value) => number.format(Number(value) || 0);
+const formatPlainPercent = (value) =>
+  Number.isFinite(Number(value)) ? `${Number(value).toFixed(2)}%` : "Unavailable";
 
-const formatPercent = (value) => {
-  const numeric = Number(value) || 0;
-  return `${numeric >= 0 ? "+" : ""}${numeric.toFixed(2)}%`;
+const formatDate = (value) =>
+  value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-";
+
+const formatDays = (value) =>
+  Number.isFinite(Number(value)) ? `${Number(value).toFixed(Number(value) >= 10 ? 0 : 1)} days` : "Unavailable";
+
+const chartTooltipStyle = {
+  background: "rgba(7, 11, 20, 0.96)",
+  border: "1px solid rgba(148, 163, 184, 0.2)",
+  borderRadius: 8
 };
 
-const toDayKey = (value) => new Date(value).toISOString().slice(0, 10);
-
-const startOfDay = (value) => {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const addDays = (date, days) => {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-};
-
-const buildPerformanceSeries = (transactions) => {
-  const sorted = [...transactions].sort(
-    (left, right) => new Date(left.timestamp) - new Date(right.timestamp)
-  );
-
-  if (sorted.length === 0) return [];
-
-  const groupedByDay = new Map();
-  sorted.forEach((transaction) => {
-    const key = toDayKey(transaction.timestamp);
-    groupedByDay.set(key, [...(groupedByDay.get(key) || []), transaction]);
-  });
-
-  const positions = new Map();
-  let cash = STARTING_CAPITAL;
-  const series = [];
-
-  for (let cursor = startOfDay(sorted[0].timestamp); cursor <= startOfDay(new Date()); cursor = addDays(cursor, 1)) {
-    const dayKey = toDayKey(cursor);
-    const trades = groupedByDay.get(dayKey) || [];
-
-    trades.forEach((transaction) => {
-      const symbol = transaction.symbol;
-      const quantity = Number(transaction.quantity) || 0;
-      const total = Number(transaction.total) || 0;
-      const price = Number(transaction.price) || 0;
-      const position = positions.get(symbol) || { quantity: 0, lastPrice: price };
-
-      if (transaction.type === "BUY") {
-        cash -= total;
-        position.quantity += quantity;
-      } else if (transaction.type === "SELL") {
-        cash += total;
-        position.quantity -= quantity;
-      }
-
-      position.lastPrice = price;
-
-      if (position.quantity <= 0) {
-        positions.delete(symbol);
-      } else {
-        positions.set(symbol, position);
-      }
-    });
-
-    const holdingsValue = Array.from(positions.values()).reduce(
-      (sum, item) => sum + item.quantity * item.lastPrice,
-      0
-    );
-    const equity = cash + holdingsValue;
-
-    series.push({
-      label: dayKey.slice(5),
-      value: Number(((equity - STARTING_CAPITAL) / STARTING_CAPITAL) * 100).toFixed(2)
-    });
-  }
-
-  return series;
-};
-
-const StatCard = ({ label, value, detail, tone = "slate" }) => {
+const StatCard = ({ label, value, detail, tone = "slate", helpTerm }) => {
   const toneClass = {
     slate: "text-[#A1A1B5]",
     cyan: "text-cyan",
     green: "text-emerald-400",
-    red: "text-red-400",
-    amber: "text-red-400"
+    red: "text-red-400"
   }[tone];
 
   return (
     <GlassPanel className="min-h-[126px]">
-      <p className="text-[11px] uppercase text-[#A1A1B5]">{label}</p>
+      <p className="flex items-center gap-2 text-[11px] uppercase text-[#A1A1B5]">
+        {label}
+        {helpTerm ? <HelpTooltip term={helpTerm} label={label} /> : null}
+      </p>
       <p className="mt-3 text-2xl font-semibold text-white md:text-3xl">{value}</p>
       {detail ? <p className={`mt-2 text-xs ${toneClass}`}>{detail}</p> : null}
     </GlassPanel>
@@ -131,43 +73,159 @@ const LoadingCard = () => (
   </GlassPanel>
 );
 
+const ReviewModal = ({ episodeId, onClose, onSaved }) => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [trade, setTrade] = useState(null);
+  const [form, setForm] = useState({
+    entryReason: "",
+    exitReason: "",
+    lesson: "",
+    improvement: ""
+  });
+
+  useEffect(() => {
+    let active = true;
+    const loadReview = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const response = await api.get(`/api/trade-reviews/${episodeId}`);
+        if (!active) return;
+        setTrade(response.data.trade);
+        setForm({
+          entryReason: response.data.review?.entryReason || "",
+          exitReason: response.data.review?.exitReason || "",
+          lesson: response.data.review?.lesson || "",
+          improvement: response.data.review?.improvement || ""
+        });
+      } catch (err) {
+        if (active) setError(getApiErrorMessage(err, "Unable to load trade review"));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadReview();
+    return () => {
+      active = false;
+    };
+  }, [episodeId]);
+
+  const saveReview = async (event) => {
+    event.preventDefault();
+    try {
+      setSaving(true);
+      setError("");
+      await api.put(`/api/trade-reviews/${episodeId}`, form);
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to save trade review"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fields = [
+    ["entryReason", "Why did I enter this trade?"],
+    ["exitReason", "Why did I exit?"],
+    ["lesson", "What did I learn?"],
+    ["improvement", "What would I do differently?"]
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
+      <div className="w-full max-w-4xl">
+        <GlassPanel className="max-h-[90vh] overflow-y-auto">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase text-cyan">Closed Trade Review</p>
+              <h3 className="mt-2 text-xl font-semibold text-white">{trade?.symbol || "Trade Review"}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-white/10 p-2 text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan"
+              aria-label="Close trade review"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {loading ? (
+            <Skeleton className="mt-6 h-72 w-full rounded-2xl" />
+          ) : error ? (
+            <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">{error}</div>
+          ) : (
+            <form className="mt-6 space-y-5" onSubmit={saveReview}>
+              <div className="grid gap-3 md:grid-cols-4">
+                {[
+                  ["Entry", formatDate(trade.openedAt)],
+                  ["Exit", formatDate(trade.closedAt)],
+                  ["Realized P&L", formatCurrency(trade.realizedPnL)],
+                  ["Return", formatPercent(trade.returnPercentage)]
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-white/10 bg-[#080910] p-3">
+                    <p className="text-[11px] uppercase text-[#A1A1B5]">{label}</p>
+                    <p className="mt-2 font-semibold text-white">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {fields.map(([key, label]) => (
+                  <label key={key} className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
+                    {label}
+                    <textarea
+                      value={form[key]}
+                      onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value.slice(0, 1500) }))}
+                      maxLength={1500}
+                      rows={4}
+                      className="resize-none rounded-lg border border-white/10 bg-[#080910] px-3 py-2 text-sm normal-case leading-6 text-white outline-none focus:border-cyan"
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-[#A1A1B5]">Review notes are plain text and never edit your financial history.</p>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? "Saving..." : "Save Review"}
+                </button>
+              </div>
+            </form>
+          )}
+        </GlassPanel>
+      </div>
+    </div>
+  );
+};
+
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [holdings, setHoldings] = useState([]);
-  const [portfolioAnalytics, setPortfolioAnalytics] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [positions, setPositions] = useState({ openPositions: [], closedPositions: [], summary: {} });
-  const subscribedSymbols = useMemo(
-    () => [
-      ...holdings.map((holding) => holding.symbol),
-      ...positions.openPositions.map((position) => position.symbol)
-    ].filter(Boolean),
-    [holdings, positions.openPositions]
-  );
-  const prices = useLivePrices(subscribedSymbols);
+  const [payload, setPayload] = useState(null);
+  const [user, setUser] = useState(null);
+  const [reviewEpisodeId, setReviewEpisodeId] = useState("");
 
   const loadAnalytics = useCallback(async ({ showLoading = true } = {}) => {
     try {
       if (showLoading) setLoading(true);
       setError("");
-      const [portfolioRes, analyticsRes, transactionsRes, positionsRes] = await Promise.all([
-        api.get("/api/portfolio"),
-        api.get("/api/portfolio/analytics"),
-        api.get("/api/transactions"),
-        api.get("/api/positions")
+      const [analyticsRes, userRes] = await Promise.all([
+        api.get("/api/analytics/performance"),
+        api.get("/api/auth/me")
       ]);
-
-      setHoldings(Array.isArray(portfolioRes.data) ? portfolioRes.data : []);
-      setPortfolioAnalytics(analyticsRes.data || null);
-      setTransactions(Array.isArray(transactionsRes.data) ? transactionsRes.data : []);
-      setPositions({
-        openPositions: Array.isArray(positionsRes.data?.openPositions) ? positionsRes.data.openPositions : [],
-        closedPositions: Array.isArray(positionsRes.data?.closedPositions) ? positionsRes.data.closedPositions : [],
-        summary: positionsRes.data?.summary || {}
-      });
+      setPayload(analyticsRes.data);
+      setUser(userRes.data || null);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to load analytics"));
+      setError(getApiErrorMessage(err, "Failed to load performance analytics"));
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -179,144 +237,37 @@ const Analytics = () => {
 
   useEffect(() => {
     const refreshAnalytics = () => loadAnalytics({ showLoading: false });
-
-    socket.on("analytics-update", refreshAnalytics);
-    socket.on("portfolio-update", refreshAnalytics);
-    socket.on("position-update", refreshAnalytics);
     socket.on("transaction-update", refreshAnalytics);
     socket.on("order-update", refreshAnalytics);
     socket.on("connect", refreshAnalytics);
-
     return () => {
-      socket.off("analytics-update", refreshAnalytics);
-      socket.off("portfolio-update", refreshAnalytics);
-      socket.off("position-update", refreshAnalytics);
       socket.off("transaction-update", refreshAnalytics);
       socket.off("order-update", refreshAnalytics);
       socket.off("connect", refreshAnalytics);
     };
   }, [loadAnalytics]);
 
-  const liveHoldings = useMemo(() => {
-    return holdings.map((holding) => {
-      const quote = prices[holding.symbol];
-      const livePrice = Number(quote?.price ?? quote?.c);
-      const fallbackPrice = Number(holding.currentPrice);
-      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
-        ? true
-        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
-      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
-      const quantity = Number(holding.quantity) || 0;
-      const investedValue = Number(holding.avgBuyPrice || 0) * quantity;
-      const currentValue = hasPrice ? currentPrice * quantity : null;
+  const chartData = useMemo(
+    () =>
+      (payload?.equitySeries || []).map((point) => ({
+        label: formatDate(point.date),
+        equity: Number(point.equity),
+        cumulativeRealizedPnL: Number(point.cumulativeRealizedPnL),
+        drawdown: Number(point.drawdownPercentage)
+      })),
+    [payload]
+  );
 
-      return {
-        ...holding,
-        currentPrice,
-        currentValue,
-        totalInvested: investedValue,
-        investedValue,
-        pnl: hasPrice ? currentValue - investedValue : null,
-        pnlPct: hasPrice && investedValue > 0 ? ((currentValue - investedValue) / investedValue) * 100 : null,
-        valuationAvailable: hasPrice
-      };
-    });
-  }, [holdings, prices]);
-
-  const livePositions = useMemo(() => {
-    const openPositions = positions.openPositions.map((position) => {
-      const quote = prices[position.symbol];
-      const livePrice = Number(quote?.price ?? quote?.c);
-      const fallbackPrice = Number(position.currentPrice);
-      const hasPrice = Number.isFinite(livePrice) && livePrice > 0
-        ? true
-        : Number.isFinite(fallbackPrice) && fallbackPrice > 0;
-      const currentPrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : hasPrice ? fallbackPrice : null;
-      const currentValue = hasPrice ? currentPrice * Number(position.netQty || 0) : null;
-      const investedValue = Number(position.investedValue) || 0;
-      const unrealizedPnL = hasPrice ? currentValue - investedValue : null;
-      return {
-        ...position,
-        currentPrice,
-        currentValue,
-        unrealizedPnL,
-        totalPnL: (Number(position.realizedPnL) || 0) + (Number(unrealizedPnL) || 0),
-        valuationAvailable: hasPrice
-      };
-    });
-    return {
-      openPositions,
-      closedPositions: positions.closedPositions,
-      summary: {
-        ...positions.summary,
-        totalOpenPnL: openPositions.reduce((sum, position) => sum + (Number(position.unrealizedPnL) || 0), 0)
-      }
-    };
-  }, [positions, prices]);
-
-  const derived = useMemo(() => {
-    const buyCount = transactions.filter((transaction) => transaction.type === "BUY").length;
-    const sellCount = transactions.filter((transaction) => transaction.type === "SELL").length;
-    const realizedPnL = Number(livePositions.summary?.totalRealizedPnL) || 0;
-    const unrealizedPnL =
-      Number(livePositions.summary?.totalOpenPnL) ||
-      livePositions.openPositions.reduce((sum, position) => sum + (Number(position.unrealizedPnL) || 0), 0);
-
-    const allPositionRows = [...livePositions.openPositions, ...livePositions.closedPositions].map((position) => ({
-      ...position,
-      totalPnL: Number(position.totalPnL) || Number(position.realizedPnL) || Number(position.unrealizedPnL) || 0,
-      pnlPct: Number(position.pnlPct) || 0
-    }));
-
-    const profitableRows = allPositionRows.filter((position) => position.totalPnL > 0);
-    const losingRows = allPositionRows.filter((position) => position.totalPnL < 0);
-    const bestTrade = profitableRows.sort((left, right) => right.totalPnL - left.totalPnL)[0] || null;
-    const worstTrade = losingRows.sort((left, right) => left.totalPnL - right.totalPnL)[0] || null;
-
-    const allocationData = liveHoldings
-      .filter((holding) => Number(holding.currentValue) > 0)
-      .sort((left, right) => Number(right.currentValue) - Number(left.currentValue))
-      .map((holding) => ({
-        label: holding.symbol,
-        value: Number(holding.currentValue) || 0,
-        companyName: holding.companyName,
-        quantity: Number(holding.quantity) || 0,
-        percent: Number(portfolioAnalytics?.currentValue)
-          ? ((Number(holding.currentValue) || 0) / Number(portfolioAnalytics.currentValue)) * 100
-          : 0
-      }));
-
-    return {
-      totalInvested: Number(portfolioAnalytics?.invested) || 0,
-      currentValue: liveHoldings.some((holding) => holding.valuationAvailable === false)
-        ? Number(portfolioAnalytics?.currentValue) || 0
-        : liveHoldings.reduce((sum, holding) => sum + (Number(holding.currentValue) || 0), 0),
-      realizedPnL,
-      unrealizedPnL,
-      totalTrades: transactions.length,
-      buyCount,
-      sellCount,
-      bestTrade,
-      worstTrade,
-      performanceData: buildPerformanceSeries(transactions),
-      allocationData
-    };
-  }, [liveHoldings, livePositions, portfolioAnalytics, transactions]);
-
-  const hasTrades = derived.totalTrades > 0;
+  const metrics = payload?.metrics || {};
+  const closedTrades = payload?.closedTrades || [];
+  const hasClosedTrades = closedTrades.length > 0;
 
   if (loading) {
     return (
       <div className="flex flex-col gap-8">
-        <PageHeader title="Advanced Analytics" subtitle="Performance insights, win rate, exposure, and trade history." />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <LoadingCard key={index} />
-          ))}
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <GlassPanel><Skeleton className="h-[280px] w-full rounded-2xl" /></GlassPanel>
-          <GlassPanel><Skeleton className="h-[280px] w-full rounded-2xl" /></GlassPanel>
+        <PageHeader title="Trading Performance" subtitle="Closed-trade analytics, risk practice, and reflection." />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => <LoadingCard key={index} />)}
         </div>
       </div>
     );
@@ -325,7 +276,7 @@ const Analytics = () => {
   if (error) {
     return (
       <div className="flex flex-col gap-8">
-        <PageHeader title="Advanced Analytics" subtitle="Performance insights, win rate, exposure, and trade history." />
+        <PageHeader title="Trading Performance" subtitle="Closed-trade analytics, risk practice, and reflection." />
         <GlassPanel className="border-red-500/30 bg-red-500/10">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -335,11 +286,7 @@ const Analytics = () => {
               </div>
               <p className="mt-3 text-sm text-red-100/90">{error}</p>
             </div>
-            <button
-              type="button"
-              onClick={loadAnalytics}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-300/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20"
-            >
+            <button type="button" onClick={loadAnalytics} className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300/60 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-100 transition hover:bg-red-500/20">
               <RefreshCcw className="h-4 w-4" />
               Retry
             </button>
@@ -349,148 +296,142 @@ const Analytics = () => {
     );
   }
 
-  if (!hasTrades) {
-    return (
-      <div className="flex flex-col gap-8">
-        <PageHeader title="Advanced Analytics" subtitle="Performance insights, win rate, exposure, and trade history." />
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <PageHeader
+          title="Trading Performance"
+          subtitle="Realized performance from executed closed trades only. Open positions are not counted as wins or losses."
+        />
+        <button
+          type="button"
+          onClick={loadAnalytics}
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#121320] px-4 py-3 text-sm font-semibold text-[#E7E9F3] transition hover:border-cyan/40 hover:text-cyan"
+        >
+          <RefreshCcw className="h-4 w-4" />
+          Refresh
+        </button>
+      </div>
+
+      {!hasClosedTrades ? (
         <GlassPanel>
           <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910] px-6 py-12 text-center">
-            <p className="text-xs font-medium text-[#A1A1B5]">No trading data</p>
-            <h3 className="mt-4 text-2xl font-semibold text-white">Analytics will appear after your first trade</h3>
+            <p className="text-xs font-medium uppercase text-[#A1A1B5]">No closed trades yet</p>
+            <h3 className="mt-4 text-2xl font-semibold text-white">Performance appears after a full Buy-to-Sell episode closes.</h3>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-[#A1A1B5]">
-              Once buy or sell transactions exist, this page will calculate invested capital, P/L, trade counts,
-              growth, and stock-wise allocation from your real account data.
+              A closed trade begins when your quantity moves from zero to positive and ends when it returns to zero. Open holdings are not counted as wins, losses, or drawdown.
             </p>
           </div>
         </GlassPanel>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        title="Advanced Analytics"
-        subtitle="Real trading performance from your portfolio, positions, and transaction history."
-      />
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Invested" value={formatCurrency(derived.totalInvested)} detail="Current open holdings" />
-        <StatCard label="Current Value" value={formatCurrency(derived.currentValue)} detail="Live portfolio value" tone="cyan" />
-        <StatCard
-          label="Realized P/L"
-          value={formatCurrency(derived.realizedPnL)}
-          detail="From closed or sold positions"
-          tone={derived.realizedPnL >= 0 ? "green" : "red"}
-        />
-        <StatCard
-          label="Unrealized P/L"
-          value={formatCurrency(derived.unrealizedPnL)}
-          detail="Open position mark-to-market"
-          tone={derived.unrealizedPnL >= 0 ? "green" : "red"}
-        />
-        <StatCard label="Total Trades" value={formatNumber(derived.totalTrades)} detail="All transaction records" />
-        <StatCard label="Buy Count" value={formatNumber(derived.buyCount)} detail="Executed buy transactions" tone="cyan" />
-        <StatCard label="Sell Count" value={formatNumber(derived.sellCount)} detail="Executed sell transactions" tone="amber" />
-        <StatCard
-          label="Net Performance"
-          value={formatPercent(((derived.currentValue + derived.realizedPnL - derived.totalInvested) / STARTING_CAPITAL) * 100)}
-          detail="Available from current APIs"
-          tone="slate"
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GlassPanel>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">Portfolio Growth</h3>
-              <p className="mt-2 text-xs text-[#6F7487]">Estimated from transaction history</p>
-            </div>
-            <span className="text-xs text-[#A1A1B5]">%</span>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+            <StatCard label="Total Realized P&L" value={formatCurrency(metrics.totalRealizedPnL)} detail="Closed episodes only" tone={metrics.totalRealizedPnL >= 0 ? "green" : "red"} />
+            <StatCard label="Win Rate" value={formatPlainPercent(metrics.winRate)} detail={`${metrics.winningTrades || 0} wins / ${metrics.totalClosedTrades || 0} closed`} helpTerm="winRate" />
+            <StatCard label="Closed Trades" value={metrics.totalClosedTrades || 0} detail={`${metrics.breakEvenTrades || 0} break-even`} />
+            <StatCard label="Average Win" value={formatCurrency(metrics.averageWinningTrade)} detail="Winning closed trades" tone="green" helpTerm="averageWin" />
+            <StatCard label="Average Loss" value={formatCurrency(metrics.averageLosingTrade)} detail="Losing closed trades" tone="red" helpTerm="averageLoss" />
+            <StatCard label="Max Drawdown" value={formatPlainPercent(metrics.maximumDrawdownPercentage)} detail="From realized equity curve" tone="red" helpTerm="drawdown" />
           </div>
-          <div className="mt-6">
-            <PnlAreaChart data={derived.performanceData} />
-          </div>
-        </GlassPanel>
 
-        <GlassPanel>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">Stock Allocation</h3>
-              <p className="mt-2 text-xs text-[#6F7487]">Current holdings by value</p>
-            </div>
-            <span className="text-xs text-[#A1A1B5]">{derived.allocationData.length} stocks</span>
-          </div>
-          <div className="mt-6">
-            <SectorPieChart data={derived.allocationData} />
-          </div>
-        </GlassPanel>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GlassPanel>
-          <p className="text-xs uppercase text-[#A1A1B5]">Best / Worst</p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <p className="text-xs font-medium text-emerald-400">Best profitable trade</p>
-              {derived.bestTrade ? (
-                <>
-                  <p className="mt-3 text-lg font-semibold text-white">{derived.bestTrade.symbol}</p>
-                  <p className="mt-1 text-sm text-[#C2C4D2]">{derived.bestTrade.companyName}</p>
-                  <p className="mt-3 text-xl font-semibold text-emerald-400">{formatCurrency(derived.bestTrade.totalPnL)}</p>
-                  <p className="mt-1 text-xs text-[#A1A1B5]">{formatPercent(derived.bestTrade.pnlPct)}</p>
-                </>
-              ) : (
-                <p className="mt-4 text-sm text-[#A1A1B5]">No profitable position data yet.</p>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-              <p className="text-xs font-medium text-red-400">Worst losing trade</p>
-              {derived.worstTrade ? (
-                <>
-                  <p className="mt-3 text-lg font-semibold text-white">{derived.worstTrade.symbol}</p>
-                  <p className="mt-1 text-sm text-[#C2C4D2]">{derived.worstTrade.companyName}</p>
-                  <p className="mt-3 text-xl font-semibold text-red-400">{formatCurrency(derived.worstTrade.totalPnL)}</p>
-                  <p className="mt-1 text-xs text-[#A1A1B5]">{formatPercent(derived.worstTrade.pnlPct)}</p>
-                </>
-              ) : (
-                <p className="mt-4 text-sm text-[#A1A1B5]">No losing position data yet.</p>
-              )}
-            </div>
-          </div>
-        </GlassPanel>
-
-        <GlassPanel>
-          <p className="text-xs uppercase text-[#A1A1B5]">Allocation List</p>
-          <div className="mt-5 space-y-3">
-            {derived.allocationData.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910] px-4 py-8 text-center text-sm text-[#A1A1B5]">
-                No active stock allocation. Closed trades remain reflected in history and realized P/L.
+          <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+            <GlassPanel>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">Realized Equity Curve</h3>
+                  <p className="mt-2 text-xs text-[#6F7487]">Starting virtual capital plus cumulative realized P&L from closed trades.</p>
+                </div>
+                <span className="text-xs text-[#A1A1B5]">{chartData.length} points</span>
               </div>
-            ) : (
-              derived.allocationData.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-white/10 bg-[#080910] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-mono text-sm font-semibold text-white">{item.label}</p>
-                      <p className="mt-1 text-xs text-[#A1A1B5]">{item.companyName}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-white">{formatCurrency(item.value)}</p>
-                      <p className="mt-1 text-xs text-cyan">{item.percent.toFixed(2)}%</p>
-                    </div>
+              <div className="mt-6 h-80 min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} minTickGap={24} />
+                    <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} width={86} tickFormatter={(value) => `Rs.${Math.round(value / 1000)}k`} />
+                    <Tooltip contentStyle={chartTooltipStyle} formatter={(value, name) => [name === "equity" ? formatCurrency(value) : formatPercent(value), name]} />
+                    <Line type="monotone" dataKey="equity" stroke="#38BDF8" strokeWidth={2.5} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </GlassPanel>
+
+            <GlassPanel>
+              <p className="text-xs font-semibold uppercase text-cyan">Learning From Your Trades</p>
+              <h3 className="mt-2 text-lg font-semibold text-white">
+                Reviewed Trades {metrics.reviewedTrades || 0} / {metrics.totalClosedTrades || 0}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-[#C2C4D2]">
+                Review closed trades to capture why you entered, why you exited, and what you learned. This is a journal only; it never edits trades.
+              </p>
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-lg border border-white/10 bg-[#080910] p-3">
+                  <p className="text-[11px] uppercase text-[#A1A1B5]">Average Return</p>
+                  <p className="mt-2 font-semibold text-white">{formatPercent(metrics.averageReturnPercentage)}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-[#080910] p-3">
+                  <p className="text-[11px] uppercase text-[#A1A1B5]">Average Holding Period</p>
+                  <p className="mt-2 font-semibold text-white">{formatDays(metrics.averageHoldingPeriodDays)}</p>
+                </div>
+              </div>
+            </GlassPanel>
+          </div>
+
+          <GlassPanel>
+            <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">Closed Trade History</h3>
+            <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
+              <div className="hidden bg-[#080910] px-4 py-3 text-[11px] uppercase text-[#A1A1B5] lg:grid lg:grid-cols-12 lg:gap-3">
+                <span className="lg:col-span-2">Symbol</span>
+                <span className="lg:col-span-2">Entry / Exit</span>
+                <span className="lg:col-span-1 text-right">Qty</span>
+                <span className="lg:col-span-2 text-right">Avg Entry</span>
+                <span className="lg:col-span-2 text-right">Avg Exit</span>
+                <span className="lg:col-span-2 text-right">P&L</span>
+                <span className="lg:col-span-1 text-right">Review</span>
+              </div>
+              {closedTrades.map((trade) => (
+                <div key={trade.episodeId} className="grid grid-cols-2 gap-3 px-4 py-4 text-sm lg:grid-cols-12 lg:items-center">
+                  <div className="col-span-2 lg:col-span-2">
+                    <p className="font-mono font-semibold text-white">{trade.symbol}</p>
+                    <p className="mt-1 text-xs text-[#A1A1B5]">{trade.holdingPeriod.label}</p>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#1A1B2B]">
-                    <div className="h-full rounded-full bg-cyan" style={{ width: `${Math.min(item.percent, 100)}%` }} />
+                  <div className="lg:col-span-2">
+                    <p className="text-[#C2C4D2]">{formatDate(trade.openedAt)}</p>
+                    <p className="mt-1 text-xs text-[#A1A1B5]">{formatDate(trade.closedAt)}</p>
+                  </div>
+                  <p className="text-right text-white lg:col-span-1">{trade.quantity}</p>
+                  <p className="text-right text-[#C2C4D2] lg:col-span-2">{formatCurrency(trade.weightedAverageEntryPrice)}</p>
+                  <p className="text-right text-[#C2C4D2] lg:col-span-2">{formatCurrency(trade.weightedAverageExitPrice)}</p>
+                  <div className={`text-right lg:col-span-2 ${trade.realizedPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    <p className="font-semibold">{formatCurrency(trade.realizedPnL)}</p>
+                    <p className="mt-1 text-xs">{formatPercent(trade.returnPercentage)}</p>
+                  </div>
+                  <div className="col-span-2 flex justify-end lg:col-span-1">
+                    <button
+                      type="button"
+                      onClick={() => setReviewEpisodeId(trade.episodeId)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-3 py-2 text-xs font-semibold text-cyan transition hover:bg-cyan/20"
+                    >
+                      <BookOpenCheck className="h-4 w-4" />
+                      Review
+                    </button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </GlassPanel>
-      </div>
+              ))}
+            </div>
+          </GlassPanel>
+        </>
+      )}
+
+      <RiskPositionCalculator availableBalance={user?.balance} />
+
+      {reviewEpisodeId ? (
+        <ReviewModal
+          episodeId={reviewEpisodeId}
+          onClose={() => setReviewEpisodeId("")}
+          onSaved={() => loadAnalytics({ showLoading: false })}
+        />
+      ) : null}
     </div>
   );
 };

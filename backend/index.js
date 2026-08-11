@@ -13,6 +13,7 @@ const { Server } = require("socket.io");
 
 const authRoutes = require("./routes/auth");
 const stockRoutes = require("./routes/stocks");
+const marketRoutes = require("./routes/market");
 const marketDepthRoutes = require("./routes/marketDepth");
 const tradeRoutes = require("./routes/trade");
 const portfolioRoutes = require("./routes/portfolio");
@@ -25,6 +26,8 @@ const competitionRoutes = require("./routes/competitions");
 const newsRoutes = require("./routes/news");
 const orderRoutes = require("./routes/orders");
 const adminRoutes = require("./routes/admin");
+const analyticsRoutes = require("./routes/analytics");
+const tradeReviewRoutes = require("./routes/tradeReviews");
 const { errorHandler } = require("./middleware/error");
 const { attachSocket } = require("./socket");
 const { startOrderProcessor } = require("./services/orderService");
@@ -80,6 +83,7 @@ app.get("/api/ready", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/stocks", stockRoutes);
+app.use("/api/market", marketRoutes);
 app.use("/api/market-depth", marketDepthRoutes);
 app.use("/api/trade", tradeRoutes);
 app.use("/api/portfolio", portfolioRoutes);
@@ -92,6 +96,8 @@ app.use("/api/competitions", competitionRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/trade-reviews", tradeReviewRoutes);
 
 app.use(errorHandler);
 

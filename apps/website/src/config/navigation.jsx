@@ -3,9 +3,11 @@ import {
   BarChart3,
   Bell,
   BriefcaseBusiness,
+  GraduationCap,
   Home,
   LayoutList,
   ListOrdered,
+  SearchCheck,
   ReceiptText,
   Settings,
   Trophy,
@@ -33,7 +35,9 @@ export const navigationGroups = [
     items: [
       { label: "Watchlist", path: "/watchlist", icon: LayoutList },
       { label: "Alerts", path: "/alerts", icon: Bell },
-      { label: "Analytics", path: "/analytics", icon: BarChart3 }
+      { label: "Market Movers", path: "/market", icon: SearchCheck },
+      { label: "Analytics", path: "/analytics", icon: BarChart3 },
+      { label: "Trading Guide", path: "/trading-guide", icon: GraduationCap }
     ]
   },
   {

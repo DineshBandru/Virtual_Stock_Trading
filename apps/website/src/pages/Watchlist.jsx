@@ -640,9 +640,9 @@ const Watchlist = () => {
             ) : sortedRows.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910] p-8 md:p-10">
                 <p className="text-xs font-medium text-[#A1A1B5]">Empty watchlist</p>
-                <h3 className="mt-4 text-2xl font-semibold text-white">Start with a few symbols</h3>
+                <h3 className="mt-4 text-2xl font-semibold text-white">Your watchlist is empty.</h3>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[#C2C4D2]">
-                  Search for a company on the left, add it to this list, and the table will come alive with live prices, day change, volume, and range.
+                  Add stocks you want to monitor. Search for a company on the left and this table will show live prices, day change, volume, and range.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button

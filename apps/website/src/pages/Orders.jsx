@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import GlassPanel from "../components/GlassPanel";
+import HelpTooltip from "../components/HelpTooltip";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
 import OrderDetailsModal from "../components/OrderDetailsModal";
@@ -139,11 +140,30 @@ const Orders = () => {
           { label: "Cancelled / Rejected", value: `${totals.cancelled} / ${totals.rejected}` }
         ].map((item) => (
           <GlassPanel key={item.label}>
-            <p className="text-[11px] uppercase text-[#A1A1B5]">{item.label}</p>
+            <p className="flex items-center gap-2 text-[11px] uppercase text-[#A1A1B5]">
+              {item.label}
+              {item.label === "Pending" ? <HelpTooltip term="pending" label="Pending" /> : null}
+              {item.label === "Executed" ? <HelpTooltip term="executed" label="Executed" /> : null}
+              {item.label === "Cancelled / Rejected" ? <HelpTooltip term="rejected" label="Rejected" /> : null}
+            </p>
             <p className="mt-3 text-3xl font-semibold text-white">{item.value}</p>
           </GlassPanel>
         ))}
       </div>
+
+      <GlassPanel className="border-cyan/20 bg-cyan/5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase text-cyan">Order lifecycle</p>
+            <p className="mt-2 text-sm leading-6 text-[#C2C4D2]">
+              Pending and Triggered orders are still waiting. Executed orders become Transactions. Rejected or Cancelled orders did not create a trade.
+            </p>
+          </div>
+          <Link to="/trading-guide#order-lifecycle" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-[#E7E9F3] transition hover:border-cyan/40 hover:text-cyan">
+            Learn Lifecycle
+          </Link>
+        </div>
+      </GlassPanel>
 
       <GlassPanel>
         <div className="flex flex-wrap items-end gap-4">
@@ -217,13 +237,16 @@ const Orders = () => {
           <span className="text-xs text-[#A1A1B5]">Tap a row for details</span>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10" data-tour="orders-view">
           <div className="hidden bg-[#080910] px-4 py-3 text-[11px] uppercase text-[#A1A1B5] md:grid md:grid-cols-12 md:gap-3">
             <span className="md:col-span-2">Symbol</span>
             <span className="md:col-span-1">Side</span>
             <span className="md:col-span-2">Type</span>
             <span className="md:col-span-1">Qty</span>
-            <span className="md:col-span-2">Status</span>
+            <span className="md:col-span-2 flex items-center gap-2">
+              Status
+              <HelpTooltip term="pending" label="Order Status" />
+            </span>
             <span className="md:col-span-2">Execution</span>
             <span className="md:col-span-2">Updated</span>
           </div>
@@ -238,7 +261,11 @@ const Orders = () => {
               : orders.length === 0
                 ? (
                   <div className="px-4 py-10 text-center text-sm text-[#A1A1B5]">
-                    No orders found. Place a market, limit, stop loss, or stop limit order to start tracking.
+                    <p className="font-semibold text-white">No orders yet.</p>
+                    <p className="mt-2">Orders you place will appear here with their current status.</p>
+                    <Link to="/" className="mt-4 inline-flex rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100">
+                      Search Stocks
+                    </Link>
                   </div>
                 )
                 : orders.map((order) => (

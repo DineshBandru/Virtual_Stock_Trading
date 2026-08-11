@@ -1,40 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ColorType, CrosshairMode, createChart } from "lightweight-charts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts";
 import { Skeleton } from "../Skeleton";
-
-const MA_WINDOW = {
-  MA20: 20,
-  MA50: 50,
-  MA200: 200
-};
+import {
+  calculateEMA,
+  calculateMACD,
+  calculateRSI,
+  calculateSMA,
+  stripNullValues
+} from "../../utils/technicalIndicators";
 
 const DEFAULT_VISIBLE_INDICATORS = {
-  MA20: true,
-  MA50: true,
-  MA200: true,
-  volume: true
+  volume: true,
+  SMA20: false,
+  SMA50: false,
+  EMA20: false,
+  RSI: false,
+  MACD: false
 };
 
 const formatPrice = (value) =>
-  Number.isFinite(value) ? `₹${value.toFixed(2)}` : "—";
+  Number.isFinite(Number(value)) ? `Rs. ${Number(value).toFixed(2)}` : "-";
 
-const movingAverage = (data, windowSize) =>
-  data
-    .map((item, index) => {
-      if (index + 1 < windowSize) {
-        return null;
-      }
-
-      const slice = data.slice(index + 1 - windowSize, index + 1);
-      const average = slice.reduce((sum, point) => sum + point.close, 0) / windowSize;
-      return { time: item.time, value: average };
-    })
-    .filter(Boolean);
+const formatTimeLabel = (time) =>
+  new Date(Number(time) * 1000).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 
 const normalizeVolume = (data) =>
   data.map((item) => ({
     time: item.time,
-    value: item.volume ?? 0,
+    value: Number(item.volume) || 0,
     color: item.close >= item.open ? "rgba(34, 211, 238, 0.55)" : "rgba(248, 113, 113, 0.55)"
   }));
 
@@ -55,6 +60,13 @@ const ChartSkeleton = () => (
   </div>
 );
 
+const SmallChartTooltip = {
+  background: "rgba(7, 11, 20, 0.96)",
+  border: "1px solid rgba(148, 163, 184, 0.2)",
+  borderRadius: 8,
+  color: "#E7E9F3"
+};
+
 const CandlestickChart = ({
   data = [],
   height = 420,
@@ -74,21 +86,53 @@ const CandlestickChart = ({
   const candleSeriesRef = useRef(null);
   const lineSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
-  const maSeriesRefs = useRef({});
+  const overlaySeriesRefs = useRef({});
   const resizeObserverRef = useRef(null);
   const [crosshair, setCrosshair] = useState(null);
   const [visibleIndicators, setVisibleIndicators] = useState(DEFAULT_VISIBLE_INDICATORS);
 
-  const candles = useMemo(() => data.filter((item) => Number.isFinite(item.open) && Number.isFinite(item.close)), [data]);
+  const candles = useMemo(
+    () =>
+      data.filter((item) =>
+        Number.isFinite(Number(item.time)) &&
+        Number.isFinite(Number(item.open)) &&
+        Number.isFinite(Number(item.high)) &&
+        Number.isFinite(Number(item.low)) &&
+        Number.isFinite(Number(item.close))
+      ),
+    [data]
+  );
   const lineData = useMemo(() => buildLineSeries(candles), [candles]);
   const volumeData = useMemo(() => normalizeVolume(candles), [candles]);
-  const movingAverages = useMemo(
+  const indicators = useMemo(
     () => ({
-      MA20: movingAverage(candles, MA_WINDOW.MA20),
-      MA50: movingAverage(candles, MA_WINDOW.MA50),
-      MA200: movingAverage(candles, MA_WINDOW.MA200)
+      SMA20: stripNullValues(calculateSMA(candles, 20)),
+      SMA50: stripNullValues(calculateSMA(candles, 50)),
+      EMA20: stripNullValues(calculateEMA(candles, 20)),
+      RSI: calculateRSI(candles, 14),
+      MACD: calculateMACD(candles, 12, 26, 9)
     }),
     [candles]
+  );
+
+  const rsiData = useMemo(
+    () =>
+      indicators.RSI.map((point) => ({
+        label: formatTimeLabel(point.time),
+        rsi: point.value
+      })).filter((point) => Number.isFinite(point.rsi)),
+    [indicators.RSI]
+  );
+
+  const macdData = useMemo(
+    () =>
+      indicators.MACD.macdLine.map((point, index) => ({
+        label: formatTimeLabel(point.time),
+        macd: point.value,
+        signal: indicators.MACD.signalLine[index]?.value,
+        histogram: indicators.MACD.histogram[index]?.value
+      })).filter((point) => Number.isFinite(point.macd) || Number.isFinite(point.signal) || Number.isFinite(point.histogram)),
+    [indicators.MACD]
   );
 
   useEffect(() => {
@@ -109,18 +153,8 @@ const CandlestickChart = ({
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: {
-          color: "rgba(56, 189, 248, 0.7)",
-          width: 1,
-          style: 2,
-          labelBackgroundColor: "#0EA5E9"
-        },
-        horzLine: {
-          color: "rgba(56, 189, 248, 0.7)",
-          width: 1,
-          style: 2,
-          labelBackgroundColor: "#0EA5E9"
-        }
+        vertLine: { color: "rgba(56, 189, 248, 0.7)", width: 1, style: 2, labelBackgroundColor: "#0EA5E9" },
+        horzLine: { color: "rgba(56, 189, 248, 0.7)", width: 1, style: 2, labelBackgroundColor: "#0EA5E9" }
       },
       rightPriceScale: {
         borderColor: "rgba(59, 130, 246, 0.18)",
@@ -132,7 +166,7 @@ const CandlestickChart = ({
         secondsVisible: false
       },
       localization: {
-        priceFormatter: (value) => `₹${value.toFixed(2)}`
+        priceFormatter: (value) => formatPrice(value)
       }
     });
 
@@ -156,16 +190,15 @@ const CandlestickChart = ({
       color: "rgba(34, 211, 238, 0.55)",
       scaleMargins: { top: 0.82, bottom: 0 }
     });
-
-    const ma20Series = chart.addLineSeries({ color: "#F59E0B", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
-    const ma50Series = chart.addLineSeries({ color: "#38BDF8", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
-    const ma200Series = chart.addLineSeries({ color: "#A855F7", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    const sma20Series = chart.addLineSeries({ color: "#F59E0B", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    const sma50Series = chart.addLineSeries({ color: "#38BDF8", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    const ema20Series = chart.addLineSeries({ color: "#A855F7", lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
 
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     lineSeriesRef.current = lineSeries;
     volumeSeriesRef.current = volumeSeries;
-    maSeriesRefs.current = { MA20: ma20Series, MA50: ma50Series, MA200: ma200Series };
+    overlaySeriesRefs.current = { SMA20: sma20Series, SMA50: sma50Series, EMA20: ema20Series };
 
     const handleResize = () => {
       if (!containerRef.current) return;
@@ -174,27 +207,19 @@ const CandlestickChart = ({
 
     resizeObserverRef.current = new ResizeObserver(handleResize);
     resizeObserverRef.current.observe(containerRef.current);
-    chart.timeScale().fitContent();
 
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.point || !param.time) {
         setCrosshair(null);
         return;
       }
-
       const candle = param.seriesData.get(candleSeriesRef.current) || param.seriesData.get(lineSeriesRef.current);
-      const price = candle?.close ?? candle?.value ?? null;
-      const open = candle?.open ?? null;
-      const high = candle?.high ?? null;
-      const low = candle?.low ?? null;
       const volume = param.seriesData.get(volumeSeriesRef.current)?.value ?? null;
-
       setCrosshair({
-        time: param.time,
-        price,
-        open,
-        high,
-        low,
+        price: candle?.close ?? candle?.value ?? null,
+        open: candle?.open ?? null,
+        high: candle?.high ?? null,
+        low: candle?.low ?? null,
         volume
       });
     });
@@ -206,61 +231,47 @@ const CandlestickChart = ({
       candleSeriesRef.current = null;
       lineSeriesRef.current = null;
       volumeSeriesRef.current = null;
-      maSeriesRefs.current = {};
+      overlaySeriesRefs.current = {};
     };
   }, [height]);
 
   useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-
-    const candleSeries = candleSeriesRef.current;
-    const lineSeries = lineSeriesRef.current;
-    const volumeSeries = volumeSeriesRef.current;
-    const maSeries = maSeriesRefs.current;
-
-    candleSeries?.setData(candles);
-    lineSeries?.setData(lineData);
-    volumeSeries?.setData(volumeData);
-    maSeries.MA20?.setData(movingAverages.MA20);
-    maSeries.MA50?.setData(movingAverages.MA50);
-    maSeries.MA200?.setData(movingAverages.MA200);
-    chart.timeScale().fitContent();
-  }, [candles, lineData, volumeData, movingAverages]);
+    if (!chartRef.current) return;
+    candleSeriesRef.current?.setData(candles);
+    lineSeriesRef.current?.setData(lineData);
+    volumeSeriesRef.current?.setData(volumeData);
+    overlaySeriesRefs.current.SMA20?.setData(indicators.SMA20);
+    overlaySeriesRefs.current.SMA50?.setData(indicators.SMA50);
+    overlaySeriesRefs.current.EMA20?.setData(indicators.EMA20);
+    chartRef.current.timeScale().fitContent();
+  }, [candles, lineData, volumeData, indicators]);
 
   useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-
-    const isCandles = mode === "candles";
-    candleSeriesRef.current?.applyOptions({ visible: isCandles });
-    lineSeriesRef.current?.applyOptions({ visible: !isCandles });
-    volumeSeriesRef.current?.applyOptions({ visible: visibleIndicators.volume && isCandles });
-    maSeriesRefs.current.MA20?.applyOptions({ visible: visibleIndicators.MA20 && isCandles });
-    maSeriesRefs.current.MA50?.applyOptions({ visible: visibleIndicators.MA50 && isCandles });
-    maSeriesRefs.current.MA200?.applyOptions({ visible: visibleIndicators.MA200 && isCandles });
-    chart.timeScale().fitContent();
+    if (!chartRef.current) return;
+    const showCandles = mode === "candles";
+    candleSeriesRef.current?.applyOptions({ visible: showCandles });
+    lineSeriesRef.current?.applyOptions({ visible: !showCandles });
+    volumeSeriesRef.current?.applyOptions({ visible: visibleIndicators.volume && showCandles });
+    overlaySeriesRefs.current.SMA20?.applyOptions({ visible: visibleIndicators.SMA20 && showCandles });
+    overlaySeriesRefs.current.SMA50?.applyOptions({ visible: visibleIndicators.SMA50 && showCandles });
+    overlaySeriesRefs.current.EMA20?.applyOptions({ visible: visibleIndicators.EMA20 && showCandles });
+    chartRef.current.timeScale().fitContent();
   }, [mode, visibleIndicators]);
 
   const chartSubtitle = useMemo(() => {
     if (!crosshair) {
-      return quote?.c ? `Live quote ${formatPrice(quote.c)}` : "Hover the chart for crosshair pricing";
+      return quote?.c ? `Live quote ${formatPrice(quote.c)}` : "Hover the chart for OHLCV details";
     }
-
-    const parts = [
+    return [
       `Price ${formatPrice(crosshair.price)}`,
       crosshair.open ? `O ${formatPrice(crosshair.open)}` : null,
       crosshair.high ? `H ${formatPrice(crosshair.high)}` : null,
       crosshair.low ? `L ${formatPrice(crosshair.low)}` : null,
-      crosshair.volume != null ? `Vol ${Math.round(crosshair.volume).toLocaleString()}` : null
-    ].filter(Boolean);
-
-    return parts.join(" • ");
+      crosshair.volume != null ? `Vol ${Math.round(crosshair.volume).toLocaleString("en-IN")}` : null
+    ].filter(Boolean).join(" | ");
   }, [crosshair, quote]);
 
-  if (loading) {
-    return <ChartSkeleton />;
-  }
+  if (loading) return <ChartSkeleton />;
 
   if (error || candles.length === 0) {
     return (
@@ -274,15 +285,13 @@ const CandlestickChart = ({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
+    <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-borderGlow/60 bg-base/70 p-4">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">{symbol || title}</p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <h3 className="text-lg font-semibold text-white">{title}</h3>
-            <span className="rounded-full border border-borderGlow/60 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-slate-300">
-              {period}
-            </span>
+            <span className="rounded-full border border-borderGlow/60 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-slate-300">{period}</span>
             <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-cyan-200">
               {mode === "candles" ? "Candlestick" : "Line"}
             </span>
@@ -290,20 +299,19 @@ const CandlestickChart = ({
           <p className="mt-2 text-sm text-slate-400">{chartSubtitle}</p>
           {historyMeta?.fetchedAt ? (
             <p className="mt-1 text-xs text-slate-500">
-              History {historyMeta.cached ? historyMeta.stale ? "stale cached" : "cached" : "updated"} at{" "}
-              {new Date(historyMeta.fetchedAt).toLocaleString()}
+              History {historyMeta.cached ? historyMeta.stale ? "stale cached" : "cached" : "updated"} at {new Date(historyMeta.fetchedAt).toLocaleString()}
             </p>
           ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <div className="flex rounded-full border border-borderGlow/60 bg-panel/60 p-1">
+          <div className="flex flex-wrap rounded-lg border border-borderGlow/60 bg-panel/60 p-1">
             {["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"].map((item) => (
               <button
                 key={item}
                 type="button"
                 onClick={() => onPeriodChange?.(item)}
-                className={`rounded-full px-3 py-2 uppercase tracking-[0.2em] transition ${
+                className={`rounded-lg px-3 py-2 uppercase tracking-[0.12em] transition ${
                   period === item ? "bg-cyan-400/10 text-cyan-200" : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -311,75 +319,101 @@ const CandlestickChart = ({
               </button>
             ))}
           </div>
-          <div className="flex rounded-full border border-borderGlow/60 bg-panel/60 p-1">
-            <button
-              type="button"
-              onClick={() => onModeChange?.("candles")}
-              className={`rounded-full px-3 py-2 uppercase tracking-[0.2em] transition ${
-                mode === "candles" ? "bg-cyan-400/10 text-cyan-200" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              Candles
-            </button>
-            <button
-              type="button"
-              onClick={() => onModeChange?.("line")}
-              className={`rounded-full px-3 py-2 uppercase tracking-[0.2em] transition ${
-                mode === "line" ? "bg-cyan-400/10 text-cyan-200" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              Line
-            </button>
+          <div className="flex rounded-lg border border-borderGlow/60 bg-panel/60 p-1">
+            {["candles", "line"].map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onModeChange?.(item)}
+                className={`rounded-lg px-3 py-2 uppercase tracking-[0.12em] transition ${
+                  mode === item ? "bg-cyan-400/10 text-cyan-200" : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {item === "candles" ? "Candles" : "Line"}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-slate-400">
-        <span className="mr-2 text-slate-500">Overlays</span>
+      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-slate-400">
+        <span className="mr-1 text-slate-500">Indicators</span>
         {[
-          ["MA20", "#F59E0B"],
-          ["MA50", "#38BDF8"],
-          ["MA200", "#A855F7"],
-          ["volume", "#22D3EE"]
-        ].map(([key, color]) => (
+          ["volume", "#22D3EE", "Volume"],
+          ["SMA20", "#F59E0B", "SMA 20"],
+          ["SMA50", "#38BDF8", "SMA 50"],
+          ["EMA20", "#A855F7", "EMA 20"],
+          ["RSI", "#22C55E", "RSI"],
+          ["MACD", "#F97316", "MACD"]
+        ].map(([key, color, label]) => (
           <button
             key={key}
             type="button"
-            onClick={() =>
-              setVisibleIndicators((current) => ({
-                ...current,
-                [key]: !current[key]
-              }))
-            }
-            className={`flex items-center gap-2 rounded-full border px-3 py-2 transition ${
+            onClick={() => setVisibleIndicators((current) => ({ ...current, [key]: !current[key] }))}
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition ${
               visibleIndicators[key]
                 ? "border-borderGlow/80 bg-panel/70 text-slate-200"
                 : "border-borderGlow/30 bg-transparent text-slate-500"
             }`}
           >
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-            {key}
+            {label}
           </button>
         ))}
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-borderGlow/60 bg-[#06101E]">
+      <div className="relative min-w-0 overflow-hidden rounded-2xl border border-borderGlow/60 bg-[#06101E]">
         <div ref={containerRef} className="w-full" style={{ height }} />
-
-        <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-1 rounded-xl border border-borderGlow/60 bg-panel/80 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-slate-300 shadow-glow">
+        <div className="pointer-events-none absolute left-4 top-4 flex max-w-[calc(100%-2rem)] flex-col gap-1 rounded-xl border border-borderGlow/60 bg-panel/80 px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-slate-300 shadow-glow">
           <span>{symbol || title}</span>
           <span className="text-cyan-200">{chartSubtitle}</span>
         </div>
-
-        {crosshair ? (
-          <div className="pointer-events-none absolute bottom-4 left-4 rounded-xl border border-borderGlow/60 bg-panel/80 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-slate-300 shadow-glow">
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <span>Price {formatPrice(crosshair.price)}</span>
-              {crosshair.volume != null ? <span>Volume {Math.round(crosshair.volume).toLocaleString()}</span> : null}
-            </div>
-          </div>
-        ) : null}
       </div>
+
+      {visibleIndicators.RSI ? (
+        <div className="min-w-0 rounded-2xl border border-borderGlow/60 bg-[#06101E] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase text-slate-300">RSI 14</p>
+              <p className="mt-1 text-xs text-slate-500">RSI is a momentum indicator. It should not be used alone to make trading decisions.</p>
+            </div>
+            <span className="text-xs text-slate-500">Reference: 70 / 30</span>
+          </div>
+          <div className="mt-4 h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={rsiData}>
+                <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} minTickGap={24} />
+                <YAxis domain={[0, 100]} tick={{ fill: "#94A3B8", fontSize: 11 }} width={44} />
+                <Tooltip contentStyle={SmallChartTooltip} />
+                <ReferenceLine y={70} stroke="#F59E0B" strokeDasharray="4 4" />
+                <ReferenceLine y={30} stroke="#38BDF8" strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="rsi" stroke="#22C55E" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ) : null}
+
+      {visibleIndicators.MACD ? (
+        <div className="min-w-0 rounded-2xl border border-borderGlow/60 bg-[#06101E] p-4">
+          <p className="text-xs font-semibold uppercase text-slate-300">MACD 12/26/9</p>
+          <p className="mt-1 text-xs text-slate-500">MACD compares moving averages and momentum; it is educational context, not a signal.</p>
+          <div className="mt-4 h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={macdData}>
+                <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 11 }} minTickGap={24} />
+                <YAxis tick={{ fill: "#94A3B8", fontSize: 11 }} width={56} />
+                <Tooltip contentStyle={SmallChartTooltip} />
+                <Bar dataKey="histogram" fill="#F97316" />
+                <Line type="monotone" dataKey="macd" stroke="#38BDF8" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="signal" stroke="#A855F7" strokeWidth={2} dot={false} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

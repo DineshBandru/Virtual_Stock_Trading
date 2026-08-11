@@ -4,12 +4,16 @@ import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import CandlestickChart from "../components/charts/CandlestickChart";
 import MarketDepthPanel from "../components/MarketDepthPanel";
+import MarketStatusBadge from "../components/MarketStatusBadge";
 import OrderTicket from "../components/OrderTicket";
+import RiskPositionCalculator from "../components/RiskPositionCalculator";
 import { Skeleton } from "../components/Skeleton";
+import useAuth from "../hooks/useAuth";
 import useStockDetail from "../hooks/useStockDetail";
 
 const StockDetail = () => {
   const { symbol } = useParams();
+  const { user } = useAuth();
   const normalizedSymbol = useMemo(() => {
     const value = String(symbol || "").trim().toUpperCase();
     if (!value) return "";
@@ -51,7 +55,7 @@ const StockDetail = () => {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4" data-tour="stock-overview">
         <PageHeader
           title="Stock Detail"
           subtitle="Candlestick view, AI signals, and order execution in one terminal panel."
@@ -68,6 +72,8 @@ const StockDetail = () => {
           </span>
         </div>
       </div>
+
+      <MarketStatusBadge quote={quote} />
 
       {loadError ? (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -134,7 +140,24 @@ const StockDetail = () => {
         </GlassPanel>
 
         <div className="flex min-w-0 flex-col gap-6">
+          <GlassPanel className="border-cyan/20 bg-cyan/5">
+            <p className="text-xs font-semibold uppercase text-cyan">What next?</p>
+            <h3 className="mt-2 text-base font-semibold text-white">Ready to practise on this stock?</h3>
+            <p className="mt-2 text-sm leading-6 text-[#C2C4D2]">
+              Review the current price, chart, and market status first. Then use the order ticket below with a small virtual quantity and Review Order before confirming.
+            </p>
+            <Link to="/trading-guide#worked-example" className="mt-3 inline-flex text-sm font-semibold text-cyan transition hover:text-cyan-100">
+              See the worked example
+            </Link>
+          </GlassPanel>
+
           <OrderTicket symbol={normalizedSymbol} quote={quote} loading={loading} onPlaced={refresh} />
+
+          <RiskPositionCalculator
+            compact
+            availableBalance={user?.balance}
+            entryPrice={quote?.c}
+          />
 
           <GlassPanel>
             <h3 className="text-sm font-semibold uppercase text-[#C2C4D2]">

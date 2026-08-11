@@ -190,6 +190,37 @@ body {
   animation: none;
 }
 
+.tradeabhyas-tour.driver-popover {
+  max-width: min(360px, calc(100vw - 24px));
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.tradeabhyas-tour .driver-popover-title {
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.tradeabhyas-tour .driver-popover-description {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.tradeabhyas-tour .driver-popover-footer {
+  gap: 0.5rem;
+}
+
+.tradeabhyas-tour .driver-popover-next-btn,
+.tradeabhyas-tour .driver-popover-prev-btn {
+  min-height: 2.25rem;
+  border-radius: 8px;
+  padding: 0.45rem 0.8rem;
+}
+
 :root:not(.dark) .bg-\[\#080910\],
 :root:not(.dark) .bg-\[\#080910\]\/70,
 :root:not(.dark) .bg-\[\#0D0E18\],

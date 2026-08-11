@@ -30,6 +30,7 @@ import {
   AreaChart
 } from "recharts";
 import GlassPanel from "../components/GlassPanel";
+import HelpTooltip from "../components/HelpTooltip";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
 import useLivePrices from "../hooks/useLivePrices";
@@ -201,7 +202,7 @@ const SectionHeader = ({ icon: Icon, title, subtitle, action }) => (
   </div>
 );
 
-const MetricCard = ({ label, value, detail, icon: Icon, tone = "cyan" }) => {
+const MetricCard = ({ label, value, detail, icon: Icon, tone = "cyan", helpTerm }) => {
   const tones = {
     cyan: "border-cyan/30 bg-cyan/10 text-cyan",
     amber: "border-slate-600 bg-[#1A1B2B] text-[#C2C4D2]",
@@ -213,7 +214,10 @@ const MetricCard = ({ label, value, detail, icon: Icon, tone = "cyan" }) => {
     <GlassPanel className="min-h-[128px]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase text-[#A1A1B5]">{label}</p>
+          <p className="flex items-center gap-2 text-[11px] uppercase text-[#A1A1B5]">
+            {label}
+            {helpTerm ? <HelpTooltip term={helpTerm} label={label} /> : null}
+          </p>
           <div className="mt-3 text-2xl font-semibold text-white">{value}</div>
           <p className={`mt-2 text-xs ${Number(detail?.rawValue) < 0 ? "text-red-400" : "text-[#A1A1B5]"}`}>
             {detail}
@@ -399,7 +403,7 @@ const Portfolio = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8" data-tour="portfolio-view">
         <PageHeader title="Portfolio" subtitle="Track holdings, performance, and sector allocation in real time." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, index) => (
@@ -417,7 +421,7 @@ const Portfolio = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8" data-tour="portfolio-view">
         <PageHeader
           title="Portfolio"
           subtitle="Track holdings, performance, and sector allocation in real time."
@@ -449,12 +453,12 @@ const Portfolio = () => {
 
   if (!hasHoldings) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8" data-tour="portfolio-view">
         <PageHeader
           title="Portfolio"
           subtitle="Track holdings, performance, and sector allocation in real time."
         />
-        <GlassPanel className="overflow-hidden border border-white/10 bg-[#121320] p-0">
+        <GlassPanel className="overflow-hidden border border-white/10 bg-[#121320] p-0" data-tour="portfolio-view">
           <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="p-6 md:p-8">
               <div className="flex h-full flex-col justify-between gap-8">
@@ -464,7 +468,7 @@ const Portfolio = () => {
                     Your portfolio is ready for its first position.
                   </h3>
                   <p className="mt-4 max-w-xl text-sm leading-6 text-[#C2C4D2]">
-                    Start trading to unlock allocation charts, growth analytics, and live risk metrics. The dashboard will automatically populate as soon as you place your first buy order.
+                    Search for a stock and place your first virtual Buy order. Your holdings will appear here with quantity, average price, current value, and P&L.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-[#C2C4D2]">
@@ -496,6 +500,7 @@ const Portfolio = () => {
                   detail="Ready to deploy"
                   icon={Wallet}
                   tone="amber"
+                  helpTerm="availableBalance"
                 />
               </div>
             </div>
@@ -506,7 +511,7 @@ const Portfolio = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8" data-tour="portfolio-view">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Portfolio"
@@ -543,6 +548,7 @@ const Portfolio = () => {
           detail="Unallocated buying power"
           icon={ShieldAlert}
           tone="slate"
+          helpTerm="availableBalance"
         />
         <MetricCard
           label="Total Profit / Loss"
@@ -559,6 +565,28 @@ const Portfolio = () => {
           tone={derived.dailyProfitLoss >= 0 ? "cyan" : "red"}
         />
       </div>
+
+      {derived.holdingRows.length > 0 ? (
+        <GlassPanel className="border-cyan/20 bg-cyan/5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase text-cyan">What next?</p>
+              <h2 className="mt-2 text-base font-semibold text-white">You now own virtual shares.</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[#C2C4D2]">
+                Watch current value and Unrealized P&L here. To practise exiting, open a holding and use Sell only for a quantity you own.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link to={`/stocks/${derived.holdingRows[0].symbol}`} className="inline-flex min-h-10 items-center rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100">
+                Open Holding
+              </Link>
+              <Link to="/trading-guide#pnl" className="inline-flex min-h-10 items-center rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-[#E7E9F3] transition hover:border-cyan/40 hover:text-cyan">
+                Learn P&L
+              </Link>
+            </div>
+          </div>
+        </GlassPanel>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
         <GlassPanel className="flex min-h-[420px] flex-col gap-6">
@@ -791,7 +819,7 @@ const Portfolio = () => {
         </GlassPanel>
       </div>
 
-      <GlassPanel className="overflow-hidden">
+      <GlassPanel className="overflow-hidden" data-tour="portfolio-view">
         <SectionHeader
           icon={Wallet}
           title="Holdings Table"
@@ -813,11 +841,26 @@ const Portfolio = () => {
               <tr className="text-[11px] uppercase text-[#A1A1B5]">
                 <th className="border-b border-white/10 px-4 py-3">Symbol</th>
                 <th className="border-b border-white/10 px-4 py-3">Quantity</th>
-                <th className="border-b border-white/10 px-4 py-3">Avg Buy Price</th>
+                <th className="border-b border-white/10 px-4 py-3">
+                  <span className="flex items-center gap-2">
+                    Avg Buy Price
+                    <HelpTooltip term="averagePrice" label="Average Price" />
+                  </span>
+                </th>
                 <th className="border-b border-white/10 px-4 py-3">Current Price</th>
                 <th className="border-b border-white/10 px-4 py-3">Invested Value</th>
-                <th className="border-b border-white/10 px-4 py-3">Current Value</th>
-                <th className="border-b border-white/10 px-4 py-3">Profit / Loss</th>
+                <th className="border-b border-white/10 px-4 py-3">
+                  <span className="flex items-center gap-2">
+                    Current Value
+                    <HelpTooltip term="currentValue" label="Current Value" />
+                  </span>
+                </th>
+                <th className="border-b border-white/10 px-4 py-3">
+                  <span className="flex items-center gap-2">
+                    Profit / Loss
+                    <HelpTooltip term="unrealizedPnl" label="Unrealized P&L" />
+                  </span>
+                </th>
                 <th className="border-b border-white/10 px-4 py-3">Profit / Loss %</th>
               </tr>
             </thead>

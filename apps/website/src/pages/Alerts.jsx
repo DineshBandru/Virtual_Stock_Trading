@@ -334,7 +334,8 @@ const Alerts = () => {
               ))
             ) : alerts.length === 0 ? (
               <div className="md:col-span-2 rounded-2xl border border-dashed border-white/10 bg-[#080910] px-4 py-12 text-center text-sm text-[#A1A1B5]">
-                No alerts yet. Create a price alert to monitor a symbol automatically.
+                <p className="font-semibold text-white">No price alerts yet.</p>
+                <p className="mt-2">Create an alert to track when a stock reaches your target price.</p>
               </div>
             ) : (
               alerts.map((alert) => (

@@ -26,7 +26,9 @@ import Alerts from "./pages/Alerts";
 import Leaderboard from "./pages/Leaderboard";
 import Competitions from "./pages/Competitions";
 import Analytics from "./pages/Analytics";
+import MarketMovers from "./pages/MarketMovers";
 import Settings from "./pages/Settings";
+import TradingGuide from "./pages/TradingGuide";
 
 const TradingNotificationBridge = () => {
   const { user } = useAuth();
@@ -170,11 +172,31 @@ const App = () => {
             }
           />
           <Route
+            path="/market"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <MarketMovers />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/analytics"
             element={
               <ProtectedRoute>
                 <AppShell>
                   <Analytics />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trading-guide"
+            element={
+              <ProtectedRoute>
+                <AppShell>
+                  <TradingGuide />
                 </AppShell>
               </ProtectedRoute>
             }

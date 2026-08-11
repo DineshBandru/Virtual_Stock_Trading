@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import GlassPanel from "../components/GlassPanel";
+import HelpTooltip from "../components/HelpTooltip";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
 import api from "../utils/api";
@@ -136,6 +138,20 @@ const Transactions = () => {
         ))}
       </div>
 
+      <GlassPanel className="border-cyan/20 bg-cyan/5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase text-cyan">What next?</p>
+            <p className="mt-2 text-sm leading-6 text-[#C2C4D2]">
+              Transactions show only trades that actually executed. If an order is Pending, Triggered, Cancelled, or Rejected, review it in Order Management.
+            </p>
+          </div>
+          <Link to="/orders" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-[#E7E9F3] transition hover:border-cyan/40 hover:text-cyan">
+            View Orders
+          </Link>
+        </div>
+      </GlassPanel>
+
       {error ? (
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
           {error}
@@ -151,14 +167,17 @@ const Transactions = () => {
           <span className="text-xs text-[#A1A1B5]">{transactions.length} records</span>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10" data-tour="transactions-view">
           <div className="hidden bg-[#080910] px-4 py-3 text-[11px] uppercase text-[#A1A1B5] lg:grid lg:grid-cols-12 lg:gap-3">
             <span className="lg:col-span-2">Stock</span>
             <span className="lg:col-span-1">Type</span>
             <span className="lg:col-span-1 text-right">Qty</span>
             <span className="lg:col-span-2 text-right">Price</span>
             <span className="lg:col-span-2 text-right">Amount</span>
-            <span className="lg:col-span-2 text-right">Realized P/L</span>
+            <span className="lg:col-span-2 flex items-center justify-end gap-2 text-right">
+              Realized P/L
+              <HelpTooltip term="realizedPnl" label="Realized P&L" />
+            </span>
             <span className="lg:col-span-2 text-right">Date</span>
           </div>
 
@@ -171,7 +190,11 @@ const Transactions = () => {
               ))
             ) : transactions.length === 0 ? (
               <div className="px-4 py-12 text-center text-sm text-[#A1A1B5]">
-                No transactions found. Executed buy and sell orders will appear here.
+                <p className="font-semibold text-white">No transactions yet.</p>
+                <p className="mt-2">Successfully executed trades will appear here.</p>
+                <Link to="/" className="mt-4 inline-flex rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100">
+                  Search Stocks
+                </Link>
               </div>
             ) : (
               transactions.map((transaction) => {

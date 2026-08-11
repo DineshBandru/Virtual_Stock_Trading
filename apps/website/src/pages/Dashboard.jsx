@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, GraduationCap, MousePointerClick, Search } from "lucide-react";
 import GlassPanel from "../components/GlassPanel";
+import HelpTooltip from "../components/HelpTooltip";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
+import { firstTradeGuideEventName, startTradingSteps } from "../data/beginnerGuidance";
 import useAuth from "../hooks/useAuth";
 import useLivePrices from "../hooks/useLivePrices";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
 import socket from "../utils/socket";
+import { getNseMarketStatus } from "../utils/marketStatus";
 
 const quickLinks = [
   { label: "Portfolio", path: "/portfolio" },
@@ -66,25 +70,6 @@ const getChangePct = (quote) => {
     return NaN;
   }
   return ((current - previous) / previous) * 100;
-};
-
-const getMarketStatus = () => {
-  const ist = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-  const day = ist.getDay();
-  const minutes = ist.getHours() * 60 + ist.getMinutes();
-  const isWeekday = day >= 1 && day <= 5;
-  const isOpen = isWeekday && minutes >= 9 * 60 + 15 && minutes <= 15 * 60 + 30;
-
-  return {
-    label: isOpen ? "Market Open" : "Market Closed",
-    tone: isOpen ? "text-emerald-400" : "text-[#A1A1B5]",
-    dot: isOpen ? "bg-emerald-400" : "bg-slate-500",
-    clock: ist.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    })
-  };
 };
 
 const withTimeout = (promise, timeoutMs, fallbackValue) =>
@@ -374,7 +359,7 @@ const Dashboard = () => {
   const totalAccountValue = availableCash + portfolioValue;
   const totalPnl = livePortfolioHoldings.reduce((sum, item) => sum + ((Number(item.currentValue) || 0) - (Number(item.invested) || 0)), 0);
   const todayPnl = livePortfolioHoldings.reduce((sum, item) => sum + (Number(item.todayPnl) || 0), 0);
-  const marketStatus = getMarketStatus();
+  const marketStatus = getNseMarketStatus();
   const watchlistPreview = watchlistSymbols.slice(0, 5);
 
   return (
@@ -386,7 +371,7 @@ const Dashboard = () => {
         />
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
-          <GlassPanel className="flex flex-col justify-between gap-4">
+          <GlassPanel className="flex flex-col justify-between gap-4" data-tour="stock-search">
             <div>
               <p className="text-sm font-medium text-[#A1A1B5]">
                 Search
@@ -511,12 +496,12 @@ const Dashboard = () => {
               </p>
               <div className="mt-3 flex items-center gap-3">
                 <span className={`h-3 w-3 rounded-full ${marketStatus.dot}`} />
-                <p className={`text-lg font-semibold ${marketStatus.tone}`}>
+                <p className={`text-lg font-semibold ${marketStatus.textTone}`}>
                   {marketStatus.label}
                 </p>
               </div>
               <p className="mt-2 text-xs text-[#A1A1B5]">
-                Last updated {marketStatus.clock}
+                {marketStatus.open ? marketStatus.hours : marketStatus.helper}
               </p>
             </div>
 
@@ -536,6 +521,51 @@ const Dashboard = () => {
           {error}
         </div>
       ) : null}
+
+      <GlassPanel className="border-cyan/20 bg-cyan/5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase text-cyan">Start Trading</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Complete your first virtual trade in a few simple steps.</h2>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => document.querySelector("[data-tour='stock-search'] input")?.focus()}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" />
+              Search Stocks
+            </button>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent(firstTradeGuideEventName))}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/20"
+            >
+              <MousePointerClick className="h-4 w-4" aria-hidden="true" />
+              First Trade Guide
+            </button>
+            <Link
+              to="/trading-guide"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-[#E7E9F3] transition hover:border-cyan/40 hover:text-cyan"
+            >
+              <GraduationCap className="h-4 w-4" aria-hidden="true" />
+              Learn How Trading Works
+            </Link>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+          {startTradingSteps.map((step, index) => (
+            <div key={step} className="flex min-h-[76px] items-start gap-3 rounded-lg border border-white/10 bg-[#080910] p-3">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan" aria-hidden="true" />
+              <p className="text-sm leading-5 text-[#C2C4D2]">
+                <span className="block text-xs font-semibold text-[#A1A1B5]">Step {index + 1}</span>
+                {step}
+              </p>
+            </div>
+          ))}
+        </div>
+      </GlassPanel>
 
       <div className="grid gap-6 xl:grid-cols-12">
         <div className="space-y-6 xl:col-span-8">
@@ -804,10 +834,12 @@ const Dashboard = () => {
               ].map((item) => (
                 <div
                   key={item.label}
+                  data-tour={item.label === "Available Cash" ? "virtual-balance" : undefined}
                   className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4"
                 >
-                  <p className="text-xs font-medium text-[#A1A1B5]">
+                  <p className="flex items-center gap-2 text-xs font-medium text-[#A1A1B5]">
                     {item.label}
+                    {item.label === "Available Cash" ? <HelpTooltip term="availableBalance" label="Available Balance" /> : null}
                   </p>
                   <p className="mt-3 text-2xl font-semibold text-white">{item.value}</p>
                 </div>
@@ -876,7 +908,7 @@ const Dashboard = () => {
                 </p>
                 <h3 className="mt-1 text-lg font-semibold text-white">Session state</h3>
               </div>
-              <span className={`text-sm font-semibold ${marketStatus.tone}`}>
+              <span className={`text-sm font-semibold ${marketStatus.textTone}`}>
                 {marketStatus.label}
               </span>
             </div>
@@ -884,9 +916,10 @@ const Dashboard = () => {
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
               <div className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4">
                 <p className="text-xs font-medium text-[#A1A1B5]">State</p>
-                <p className={`mt-3 text-2xl font-semibold ${marketStatus.tone}`}>
+                <p className={`mt-3 text-2xl font-semibold ${marketStatus.textTone}`}>
                   {marketStatus.label}
                 </p>
+                <p className="mt-2 text-xs text-[#A1A1B5]">{marketStatus.helper}</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-[#080910] px-4 py-4">
                 <p className="text-xs font-medium text-[#A1A1B5]">

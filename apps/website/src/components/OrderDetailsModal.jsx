@@ -1,4 +1,5 @@
 import GlassPanel from "./GlassPanel";
+import { orderStatusGuidance } from "../data/beginnerGuidance";
 
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -38,6 +39,7 @@ const OrderDetailsModal = ({ order, open, onClose, onCancel, cancelling }) => {
     },
     { label: order.status, done: order.status !== "Pending" }
   ];
+  const guidance = orderStatusGuidance[order.status] || orderStatusGuidance.Pending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6">
@@ -86,6 +88,11 @@ const OrderDetailsModal = ({ order, open, onClose, onCancel, cancelling }) => {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-white/10 bg-[#080910] px-4 py-4 text-sm text-[#C2C4D2]" role="status">
+          <p className="font-semibold text-white">{guidance.title}</p>
+          <p className="mt-2 text-xs leading-5">{guidance.body}</p>
         </div>
 
         {order.stopTriggeredAt ? (

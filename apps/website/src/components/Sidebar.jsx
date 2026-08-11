@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { isNavigationItemActive, navigationGroups } from "../config/navigation";
+import NeedHelpMenu from "./NeedHelpMenu";
 
 const SidebarLink = ({ item }) => {
   const location = useLocation();
@@ -69,6 +70,7 @@ const Sidebar = () => {
 
       <div className="mt-3 shrink-0 border-t border-white/10 pt-3">
         <div className="flex flex-col gap-1">
+          <NeedHelpMenu />
           <Link
             to="/settings/account"
             className="mb-2 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 outline-none transition hover:border-cyan/30 focus-visible:border-cyan/60 focus-visible:ring-2 focus-visible:ring-cyan/20"

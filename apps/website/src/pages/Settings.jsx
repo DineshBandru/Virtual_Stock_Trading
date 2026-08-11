@@ -10,6 +10,7 @@ import {
   Monitor,
   Moon,
   Palette,
+  PlayCircle,
   Save,
   ShieldCheck,
   Sun,
@@ -23,6 +24,7 @@ import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
 import useAuth from "../hooks/useAuth";
 import { useTheme } from "../context/ThemeContext";
+import { replayTourEventName } from "../data/beginnerGuidance";
 
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -350,6 +352,10 @@ const Settings = () => {
     }
   };
 
+  const replayTradingTour = () => {
+    window.dispatchEvent(new CustomEvent(replayTourEventName));
+  };
+
   const summaryCards = [
     { label: "Virtual cash", value: formatCurrency(user?.balance) },
     { label: "Portfolio value", value: formatCurrency(tradingSummary.portfolioValue) },
@@ -583,6 +589,22 @@ const Settings = () => {
                   </GlassPanel>
 
                   <GlassPanel>
+                    <div className="mb-4 rounded-lg border border-cyan/20 bg-cyan/10 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-cyan">Beginner guidance</p>
+                          <p className="mt-1 text-sm text-slate-300">Replay the trading walkthrough anytime.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={replayTradingTour}
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20"
+                        >
+                          <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                          Replay Trading Tour
+                        </button>
+                      </div>
+                    </div>
                   {profileErrors.form ? <p className="text-sm text-red-300">{profileErrors.form}</p> : null}
                   {profileStatus ? <p className="text-sm text-emerald-300">{profileStatus}</p> : null}
                     <button

@@ -16,6 +16,7 @@ import {
   Minus
 } from "lucide-react";
 import GlassPanel from "../components/GlassPanel";
+import HelpTooltip from "../components/HelpTooltip";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
 import useLivePrices from "../hooks/useLivePrices";
@@ -379,7 +380,11 @@ const Positions = () => {
             <GlassPanel key={item.label} className="min-h-[126px]">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] uppercase text-[#A1A1B5]">{item.label}</p>
+          <p className="flex items-center gap-2 text-[11px] uppercase text-[#A1A1B5]">
+            {item.label}
+            {item.label === "Realized P&L" ? <HelpTooltip term="realizedPnl" label="Realized P&L" /> : null}
+            {item.label === "Unrealized P&L" ? <HelpTooltip term="unrealizedPnl" label="Unrealized P&L" /> : null}
+          </p>
                   <p className={`mt-3 text-2xl font-semibold ${typeof item.value === "number" ? summaryTone(item.value) : "text-white"}`}>
                     {typeof item.value === "number" ? formatCurrency(item.value) : item.value}
                   </p>
@@ -455,7 +460,7 @@ const Positions = () => {
             <p className="text-xs font-medium text-[#A1A1B5]">{tab === "open" ? "No open positions" : "No closed positions"}</p>
             <h3 className="mt-4 text-2xl font-semibold text-white">{emptyMessage}</h3>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#C2C4D2]">
-              Use the OMS to place orders and let completed trades flow into this view automatically.
+              Search for a stock, place a virtual Buy order, and executed trades will flow into this view automatically. Closed exits will appear after you sell.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
@@ -490,9 +495,12 @@ const Positions = () => {
                         </button>
                       </th>
                       <th className="px-4 py-4">
-                        <button type="button" onClick={() => toggleSort("averageBuyPrice")} className="inline-flex items-center gap-2">
-                          Avg Price {renderSortIcon("averageBuyPrice")}
-                        </button>
+                        <span className="inline-flex items-center gap-2">
+                          <button type="button" onClick={() => toggleSort("averageBuyPrice")} className="inline-flex items-center gap-2">
+                            Avg Price {renderSortIcon("averageBuyPrice")}
+                          </button>
+                          <HelpTooltip term="averagePrice" label="Average Price" />
+                        </span>
                       </th>
                       <th className="px-4 py-4">
                         <button type="button" onClick={() => toggleSort("currentPrice")} className="inline-flex items-center gap-2">
@@ -505,14 +513,20 @@ const Positions = () => {
                         </button>
                       </th>
                       <th className="px-4 py-4">
-                        <button type="button" onClick={() => toggleSort("currentValue")} className="inline-flex items-center gap-2">
-                          Current Value {renderSortIcon("currentValue")}
-                        </button>
+                        <span className="inline-flex items-center gap-2">
+                          <button type="button" onClick={() => toggleSort("currentValue")} className="inline-flex items-center gap-2">
+                            Current Value {renderSortIcon("currentValue")}
+                          </button>
+                          <HelpTooltip term="currentValue" label="Current Value" />
+                        </span>
                       </th>
                       <th className="px-4 py-4">
-                        <button type="button" onClick={() => toggleSort("totalPnL")} className="inline-flex items-center gap-2">
-                          P&L {renderSortIcon("totalPnL")}
-                        </button>
+                        <span className="inline-flex items-center gap-2">
+                          <button type="button" onClick={() => toggleSort("totalPnL")} className="inline-flex items-center gap-2">
+                            P&L {renderSortIcon("totalPnL")}
+                          </button>
+                          <HelpTooltip term="unrealizedPnl" label="Position P&L" />
+                        </span>
                       </th>
                       <th className="px-4 py-4">
                         <button type="button" onClick={() => toggleSort("pnlPct")} className="inline-flex items-center gap-2">

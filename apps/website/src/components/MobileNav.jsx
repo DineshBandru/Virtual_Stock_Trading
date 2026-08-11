@@ -3,6 +3,7 @@ import { LogOut, Menu, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { isNavigationItemActive, navigationGroups } from "../config/navigation";
+import NeedHelpMenu from "./NeedHelpMenu";
 
 const MobileDrawerLink = ({ item, onNavigate }) => {
   const location = useLocation();
@@ -133,6 +134,7 @@ const MobileNav = () => {
             </nav>
 
             <div className="shrink-0 border-t border-white/10 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3">
+              <NeedHelpMenu onNavigate={close} />
               <button
                 type="button"
                 onClick={handleLogout}
