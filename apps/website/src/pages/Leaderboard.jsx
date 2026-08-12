@@ -53,7 +53,7 @@ const Leaderboard = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <PageHeader title="Leaderboard" subtitle="Ranked by real portfolio value and cash balance." />
         <GlassPanel>
           <div className="space-y-3">
@@ -68,7 +68,7 @@ const Leaderboard = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <PageHeader title="Leaderboard" subtitle="Ranked by real portfolio value and cash balance." />
         <GlassPanel className="border-red-500/30 bg-red-500/10">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -94,7 +94,7 @@ const Leaderboard = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Leaderboard"
         subtitle="Normal users ranked by cash plus current holding value."

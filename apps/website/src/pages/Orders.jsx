@@ -126,7 +126,7 @@ const Orders = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Order Management"
         subtitle="Track market, limit, stop loss, and stop limit orders with live status updates."

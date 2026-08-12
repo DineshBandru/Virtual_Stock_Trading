@@ -320,6 +320,10 @@ const setTourSeen = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
   try {
+    if (Object.prototype.hasOwnProperty.call(req.body, "balance")) {
+      return res.status(403).json({ message: "Virtual balance can only be changed by an admin" });
+    }
+
     const name = String(req.body.name || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
     const phone = String(req.body.phone || "").trim();

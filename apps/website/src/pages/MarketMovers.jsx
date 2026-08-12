@@ -25,6 +25,18 @@ const formatCurrency = (value) =>
 const formatPercent = (value) =>
   Number.isFinite(Number(value)) ? `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(2)}%` : "Unavailable";
 
+const TrendValue = ({ value, formatter = formatPercent }) => {
+  const numericValue = Number(value);
+  const isPositive = Number.isFinite(numericValue) ? numericValue >= 0 : true;
+  const Icon = isPositive ? TrendingUp : TrendingDown;
+  return (
+    <span className={`inline-flex items-center justify-end gap-1.5 ${isPositive ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      {formatter(value)}
+    </span>
+  );
+};
+
 const MarketMovers = () => {
   const [type, setType] = useState("gainers");
   const [loading, setLoading] = useState(true);
@@ -52,7 +64,7 @@ const MarketMovers = () => {
   const rows = payload?.result || [];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Market Movers"
@@ -137,11 +149,11 @@ const MarketMovers = () => {
                 </div>
                 <p className="font-mono text-cyan lg:col-span-2">{item.symbol}</p>
                 <p className="text-right text-white lg:col-span-2">{formatCurrency(item.currentPrice)}</p>
-                <p className={`text-right lg:col-span-2 ${item.change >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {formatCurrency(item.change)}
+                <p className="text-right lg:col-span-2">
+                  <TrendValue value={item.change} formatter={formatCurrency} />
                 </p>
-                <p className={`text-right lg:col-span-1 ${item.changePercent >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {formatPercent(item.changePercent)}
+                <p className="text-right lg:col-span-1">
+                  <TrendValue value={item.changePercent} />
                 </p>
                 <p className="text-right font-mono text-[#C2C4D2] lg:col-span-2">
                   {Number(item.volume).toLocaleString("en-IN")}

@@ -403,7 +403,7 @@ const Portfolio = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-8" data-tour="portfolio-view">
+      <div className="flex flex-col gap-6" data-tour="portfolio-view">
         <PageHeader title="Portfolio" subtitle="Track holdings, performance, and sector allocation in real time." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, index) => (
@@ -421,7 +421,7 @@ const Portfolio = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-8" data-tour="portfolio-view">
+      <div className="flex flex-col gap-6" data-tour="portfolio-view">
         <PageHeader
           title="Portfolio"
           subtitle="Track holdings, performance, and sector allocation in real time."
@@ -453,7 +453,7 @@ const Portfolio = () => {
 
   if (!hasHoldings) {
     return (
-      <div className="flex flex-col gap-8" data-tour="portfolio-view">
+      <div className="flex flex-col gap-6" data-tour="portfolio-view">
         <PageHeader
           title="Portfolio"
           subtitle="Track holdings, performance, and sector allocation in real time."
@@ -511,7 +511,7 @@ const Portfolio = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8" data-tour="portfolio-view">
+    <div className="flex flex-col gap-6" data-tour="portfolio-view">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Portfolio"

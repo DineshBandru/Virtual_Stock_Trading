@@ -4,17 +4,7 @@ const mongoose = require("../backend/node_modules/mongoose");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const User = require("../backend/models/User");
-const Alert = require("../backend/models/Alert");
-const Competition = require("../backend/models/Competition");
-const Order = require("../backend/models/Order");
-const Portfolio = require("../backend/models/Portfolio");
-const RefreshToken = require("../backend/models/RefreshToken");
-const TradeReview = require("../backend/models/TradeReview");
-const Transaction = require("../backend/models/Transaction");
-const Watchlist = require("../backend/models/Watchlist");
-
-const TEST_ACCOUNT_PATTERN = /(seed|test|demo|codex|dummy|fake)/i;
+const { cleanupTestingData, findTestingData } = require("../backend/services/testingDataCleanupService");
 const shouldDelete = process.argv.includes("--delete");
 
 const main = async () => {
@@ -24,40 +14,27 @@ const main = async () => {
 
   await mongoose.connect(process.env.MONGO_URI);
 
-  const users = await User.find({
-    $or: [{ email: TEST_ACCOUNT_PATTERN }, { name: TEST_ACCOUNT_PATTERN }]
-  })
-    .select("name email role createdAt")
-    .sort({ createdAt: 1 })
-    .lean();
+  const { users, testInstruments } = await findTestingData();
 
   console.log(`Matched ${users.length} testing account(s):`);
   for (const user of users) {
     console.log(`- ${user._id} | ${user.role} | ${user.name} | ${user.email} | ${user.createdAt?.toISOString?.() || user.createdAt}`);
   }
 
-  if (!shouldDelete || users.length === 0) {
-    console.log(shouldDelete ? "Nothing to delete." : "Dry run only. Re-run with --delete to permanently remove these accounts and related records.");
+  console.log(`Matched ${testInstruments.length} testing instrument(s):`);
+  for (const instrument of testInstruments) {
+    console.log(`- ${instrument._id} | ${instrument.symbol} | ${instrument.tradingSymbol} | ${instrument.companyName}`);
+  }
+
+  if (!shouldDelete || (users.length === 0 && testInstruments.length === 0)) {
+    console.log(shouldDelete ? "Nothing to delete." : "Dry run only. Re-run with --delete to permanently remove these accounts, related records, and test instruments.");
     await mongoose.disconnect();
     return;
   }
 
-  const userIds = users.map((user) => user._id);
-  const results = {};
+  const { removedEmails, results } = await cleanupTestingData({ knownUsers: users, knownInstruments: testInstruments });
 
-  results.alerts = await Alert.deleteMany({ userId: { $in: userIds } });
-  results.orders = await Order.deleteMany({ userId: { $in: userIds } });
-  results.portfolios = await Portfolio.deleteMany({ userId: { $in: userIds } });
-  results.refreshTokens = await RefreshToken.deleteMany({ userId: { $in: userIds } });
-  results.tradeReviews = await TradeReview.deleteMany({ userId: { $in: userIds } });
-  results.transactions = await Transaction.deleteMany({ userId: { $in: userIds } });
-  results.watchlists = await Watchlist.deleteMany({ userId: { $in: userIds } });
-  results.competitionParticipants = await Competition.updateMany(
-    { "participants.userId": { $in: userIds } },
-    { $pull: { participants: { userId: { $in: userIds } } } }
-  );
-  results.users = await User.deleteMany({ _id: { $in: userIds } });
-
+  console.log(`Removed testing account emails: ${removedEmails.length ? removedEmails.join(", ") : "none"}`);
   console.log("Deletion results:");
   for (const [collection, result] of Object.entries(results)) {
     const count = result.deletedCount ?? result.modifiedCount ?? 0;

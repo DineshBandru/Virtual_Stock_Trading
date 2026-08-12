@@ -1,12 +1,14 @@
 const express = require("express");
 const {
   getUsers,
+  updateUserBalance,
   getTransactions,
   getOrders,
   createCompetition,
   getCompetitions,
   archiveCompetition,
   getStats,
+  cleanupTestingRecords,
   syncInstruments
 } = require("../controllers/adminController");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
@@ -16,6 +18,14 @@ const { runValidation } = require('../middleware/validate');
 const router = express.Router();
 
 router.get("/users", requireAuth, requireAdmin, getUsers);
+router.patch(
+  "/users/:id/balance",
+  requireAuth,
+  requireAdmin,
+  [body("balance").isFloat({ min: 0 })],
+  runValidation,
+  updateUserBalance
+);
 router.get("/transactions", requireAuth, requireAdmin, getTransactions);
 router.get("/orders", requireAuth, requireAdmin, getOrders);
 router.get("/competitions", requireAuth, requireAdmin, getCompetitions);
@@ -35,6 +45,7 @@ router.post(
   createCompetition
 );
 router.patch("/competitions/:id/archive", requireAuth, requireAdmin, archiveCompetition);
+router.delete("/testing-data", requireAuth, requireAdmin, cleanupTestingRecords);
 router.get("/stats", requireAuth, requireAdmin, getStats);
 router.post("/instruments/sync", requireAuth, requireAdmin, syncInstruments);
 

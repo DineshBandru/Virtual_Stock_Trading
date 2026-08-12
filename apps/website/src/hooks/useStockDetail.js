@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
-import socket from "../utils/socket";
 import useLivePrices from "./useLivePrices";
 
 const formatCandles = (payload) => {
@@ -22,17 +21,24 @@ const formatCandles = (payload) => {
         Number.isFinite(item.high) &&
         Number.isFinite(item.low) &&
         Number.isFinite(item.close)
-      );
+      )
+      .sort((left, right) => left.time - right.time);
   }
   if (!payload.t || !payload.c) return [];
-  return payload.t.map((timestamp, index) => ({
+    return payload.t.map((timestamp, index) => ({
     time: Number(timestamp),
     open: Number(payload.o[index]),
     high: Number(payload.h[index]),
     low: Number(payload.l[index]),
     close: Number(payload.c[index]),
     volume: Number(payload.v?.[index]) || 0
-  }));
+  })).filter((item) =>
+    Number.isFinite(item.time) &&
+    Number.isFinite(item.open) &&
+    Number.isFinite(item.high) &&
+    Number.isFinite(item.low) &&
+    Number.isFinite(item.close)
+  ).sort((left, right) => left.time - right.time);
 };
 
 const ensureNseSuffix = (value) => {
@@ -46,11 +52,7 @@ const useStockDetail = (symbol, period) => {
   const [error, setError] = useState("");
   const [quote, setQuote] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [signal, setSignal] = useState(null);
   const [candles, setCandles] = useState([]);
-  const [marketDepth, setMarketDepth] = useState(null);
-  const [depthLoading, setDepthLoading] = useState(true);
-  const [depthError, setDepthError] = useState("");
   const [historyError, setHistoryError] = useState("");
   const [historyMeta, setHistoryMeta] = useState(null);
 
@@ -79,7 +81,6 @@ const useStockDetail = (symbol, period) => {
 
       if (historyResult.status === "fulfilled") {
         const historyPayload = historyResult.value.data || {};
-        setSignal(historyPayload.signal || null);
         setCandles(formatCandles(historyPayload));
         setHistoryMeta({
           range: historyPayload.range,
@@ -89,7 +90,6 @@ const useStockDetail = (symbol, period) => {
           fetchedAt: historyPayload.fetchedAt
         });
       } else {
-        setSignal(null);
         setCandles([]);
         setHistoryMeta(null);
         setHistoryError(getApiErrorMessage(historyResult.reason, "Chart history is unavailable"));
@@ -99,62 +99,15 @@ const useStockDetail = (symbol, period) => {
     }
   }, [normalizedSymbol, period]);
 
-  const refreshDepth = useCallback(async () => {
-    if (!normalizedSymbol) return;
-    try {
-      setDepthLoading(true);
-      setDepthError("");
-      const response = await api.get(`/api/market-depth/${encodeURIComponent(normalizedSymbol)}`);
-      setMarketDepth(response.data || null);
-    } catch (err) {
-      setDepthError(getApiErrorMessage(err, "Failed to load market depth"));
-    } finally {
-      setDepthLoading(false);
-    }
-  }, [normalizedSymbol]);
-
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   useEffect(() => {
-    refreshDepth();
-  }, [refreshDepth]);
-
-  useEffect(() => {
-    if (!normalizedSymbol) return undefined;
-
-    const handleDepthUpdate = (payload) => {
-      if (!payload?.symbol || payload.symbol.toUpperCase() === normalizedSymbol) {
-        refreshDepth();
-      }
-    };
-
-    socket.on("market-depth:update", handleDepthUpdate);
-    socket.on("orders:update", handleDepthUpdate);
-
-    return () => {
-      socket.off("market-depth:update", handleDepthUpdate);
-      socket.off("orders:update", handleDepthUpdate);
-    };
-  }, [refreshDepth, normalizedSymbol]);
-
-  useEffect(() => {
     const liveQuote = livePrices[normalizedSymbol];
     if (!liveQuote) return;
     setQuote((current) => ({ ...(current || {}), ...liveQuote }));
-    refreshDepth();
-  }, [livePrices, normalizedSymbol, refreshDepth]);
-
-  useEffect(() => {
-    if (!normalizedSymbol) return undefined;
-
-    const timer = window.setInterval(() => {
-      refreshDepth();
-    }, 15000);
-
-    return () => window.clearInterval(timer);
-  }, [refreshDepth, normalizedSymbol]);
+  }, [livePrices, normalizedSymbol]);
 
   const changePct = useMemo(() => {
     if (!quote || !Number.isFinite(quote.c) || !Number.isFinite(quote.pc) || quote.pc === 0) return NaN;
@@ -167,15 +120,10 @@ const useStockDetail = (symbol, period) => {
     historyError,
     quote,
     profile,
-    signal,
     candles,
-    marketDepth,
-    depthLoading,
-    depthError,
     historyMeta,
     changePct,
-    refresh,
-    refreshDepth
+    refresh
   };
 };
 

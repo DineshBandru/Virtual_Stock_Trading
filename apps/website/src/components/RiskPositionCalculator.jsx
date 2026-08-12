@@ -18,16 +18,11 @@ const RiskPositionCalculator = ({
   compact = false,
   onUseQuantity
 }) => {
-  const [balance, setBalance] = useState(availableBalance || "");
   const [entry, setEntry] = useState(entryPrice || "");
   const [stop, setStop] = useState("");
   const [riskPercent, setRiskPercent] = useState("1");
 
-  useEffect(() => {
-    if (Number.isFinite(Number(availableBalance)) && Number(availableBalance) > 0) {
-      setBalance(String(availableBalance));
-    }
-  }, [availableBalance]);
+  const accountBalance = Number.isFinite(Number(availableBalance)) ? Number(availableBalance) : 0;
 
   useEffect(() => {
     if (Number.isFinite(Number(entryPrice)) && Number(entryPrice) > 0) {
@@ -38,12 +33,12 @@ const RiskPositionCalculator = ({
   const result = useMemo(
     () =>
       calculatePositionSize({
-        availableBalance: balance,
+        availableBalance: accountBalance,
         entryPrice: entry,
         stopLossPrice: stop,
         riskPercent
       }),
-    [balance, entry, stop, riskPercent]
+    [accountBalance, entry, stop, riskPercent]
   );
 
   const rows = result.valid
@@ -72,16 +67,15 @@ const RiskPositionCalculator = ({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
+        <div className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
           Available Virtual Balance
-          <input
-            type="number"
-            min="0"
-            value={balance}
-            onChange={(event) => setBalance(event.target.value)}
-            className="rounded-lg border border-white/10 bg-[#080910] px-3 py-2 text-sm text-white outline-none focus:border-cyan"
-          />
-        </label>
+          <div className="rounded-lg border border-white/10 bg-[#080910] px-3 py-2 text-sm font-semibold text-white">
+            {formatCurrency(accountBalance)}
+          </div>
+          <p className="normal-case leading-5 text-[#A1A1B5]">
+            Balance is controlled by executed trades and admin adjustments only.
+          </p>
+        </div>
         <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
           Risk %
           <input

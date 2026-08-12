@@ -351,7 +351,7 @@ const Positions = () => {
     : "No closed positions yet. Completed exits and squared-off positions will appear here.";
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <PageHeader
           title="Positions"

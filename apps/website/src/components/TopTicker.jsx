@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 const quickLinks = [
   { label: "Market Pulse", to: "/", tone: "text-amber" },
   { label: "Live Quotes", to: "/watchlist" },
-  { label: "AI Signals", to: "/stocks/RELIANCE" },
+  { label: "Price Chart", to: "/stocks/RELIANCE" },
   { label: "Portfolio", to: "/portfolio" },
   { label: "Market News", to: "/#market-news" },
   { label: "Leaderboard", to: "/leaderboard" }

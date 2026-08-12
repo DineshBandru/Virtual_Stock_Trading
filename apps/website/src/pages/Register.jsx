@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import useToast from "../hooks/useToast";
 import { getApiErrorMessage } from "../utils/errorMessage";
@@ -159,8 +159,14 @@ const Register = ({ inline = false }) => {
           disabled={loading}
           className="mt-4 rounded-2xl border border-cyan/80 bg-cyan/10 px-4 py-3 text-sm font-semibold text-cyan shadow-none transition hover:bg-cyan/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Creating account..." : "Create Provision Virtual Desk Account"}
+          {loading ? "Creating account..." : "Create Trading Account"}
         </button>
+        <div className="mt-2 rounded-lg border border-borderGlow bg-base px-4 py-3 text-center text-sm text-slate-400">
+          Already have an account?{" "}
+          <Link to="/login" className="font-semibold text-cyan transition hover:text-cyan/80">
+            Sign in
+          </Link>
+        </div>
       </form>
     </div>
   );

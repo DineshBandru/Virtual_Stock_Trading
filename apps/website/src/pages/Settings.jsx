@@ -107,7 +107,7 @@ const SettingTab = ({ section, active }) => {
     <Link
       to={section.path}
       aria-current={active ? "page" : undefined}
-      className={`flex min-h-11 shrink-0 items-center gap-3 rounded-lg border px-3 py-2 text-sm font-semibold outline-none transition focus-visible:border-cyan/60 focus-visible:ring-2 focus-visible:ring-cyan/20 ${
+      className={`flex min-h-12 flex-1 shrink-0 items-center justify-center gap-3 rounded-md border px-4 py-2.5 text-sm font-semibold outline-none transition sm:flex-none sm:justify-start focus-visible:border-cyan/60 focus-visible:ring-2 focus-visible:ring-cyan/20 ${
         active
           ? "border-cyan/40 bg-cyan/10 text-white"
           : "border-borderGlow bg-base text-slate-400 hover:border-cyan/30 hover:text-white"
@@ -146,22 +146,22 @@ const PasswordInput = ({ id, label, value, visible, disabled, onChange, onToggle
 };
 
 const TextField = ({ label, error, className = "", ...props }) => (
-  <label className={`text-sm text-slate-300 ${className}`}>
+  <label className={`text-[13px] font-medium text-slate-300 ${className}`}>
     {label}
     <input
       {...props}
-      className="mt-2 w-full rounded-lg border border-borderGlow bg-base px-3 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan focus:ring-2 focus:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-2 min-h-12 w-full rounded-md border border-borderGlow bg-base px-3 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan focus:ring-2 focus:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
     />
     {error ? <span className="mt-1 block text-xs text-red-300">{error}</span> : null}
   </label>
 );
 
 const SelectField = ({ label, error, options, className = "", ...props }) => (
-  <label className={`text-sm text-slate-300 ${className}`}>
+  <label className={`text-[13px] font-medium text-slate-300 ${className}`}>
     {label}
     <select
       {...props}
-      className="mt-2 w-full rounded-lg border border-borderGlow bg-base px-3 py-3 text-white outline-none transition focus:border-cyan focus:ring-2 focus:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-2 min-h-12 w-full rounded-md border border-borderGlow bg-base px-3 py-3 text-sm text-white outline-none transition focus:border-cyan focus:ring-2 focus:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -187,6 +187,30 @@ const ToggleRow = ({ label, description, checked, disabled, onChange }) => (
       className="mt-1 h-5 w-5 shrink-0 accent-cyan"
     />
   </label>
+);
+
+const SettingsCardHeader = ({ eyebrow, title, description, icon: Icon }) => (
+  <div className="border-b border-borderGlow px-5 py-5">
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{eyebrow}</p>
+        <h3 className="mt-2 text-xl font-semibold tracking-tight text-white">{title}</h3>
+        {description ? <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p> : null}
+      </div>
+      {Icon ? (
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-cyan/25 bg-cyan/10 text-cyan">
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
+      ) : null}
+    </div>
+  </div>
+);
+
+const SummaryMetric = ({ label, value }) => (
+  <div className="min-h-24 rounded-md border border-borderGlow bg-base p-4">
+    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+    <p className="mt-3 font-mono text-lg font-semibold tracking-tight text-white">{value}</p>
+  </div>
 );
 
 const Settings = () => {
@@ -366,12 +390,12 @@ const Settings = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader title="Settings" subtitle="Manage your account, security, and appearance." />
+    <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6">
+      <PageHeader title="Settings" subtitle="Manage account details, security controls, notifications, and appearance." />
 
-      <div className="grid items-start gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <GlassPanel className="p-3">
-          <nav className="flex gap-2 overflow-x-auto xl:flex-col xl:overflow-visible" aria-label="Settings sections">
+      <div className="flex flex-col gap-6">
+        <GlassPanel className="p-2">
+          <nav className="grid gap-2 sm:grid-cols-3" aria-label="Settings sections">
             {settingsSections.map((section) => (
               <SettingTab key={section.id} section={section} active={activeSection === section.id} />
             ))}
@@ -381,74 +405,66 @@ const Settings = () => {
         <div className="min-w-0">
           {activeSection === "account" ? (
             <div className="flex flex-col gap-6">
-              <section className="grid items-start gap-6 xl:grid-cols-[minmax(260px,0.85fr)_minmax(0,1.35fr)]">
-                <GlassPanel>
-                  <div className="flex items-start gap-4">
-                    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-cyan/30 bg-cyan/10 text-cyan">
-                      <UserRound className="h-7 w-7" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold uppercase text-slate-500">Account overview</p>
-                      <h2 className="mt-2 truncate text-2xl font-semibold text-white">{user?.name || "Trader"}</h2>
-                      <p className="mt-1 break-all text-sm text-slate-400">{user?.email || "-"}</p>
+              <section className="grid items-stretch gap-6 xl:grid-cols-12">
+                <GlassPanel className="overflow-hidden p-0 xl:col-span-4">
+                  <SettingsCardHeader eyebrow="Account overview" title={user?.name || "Trader"} description={user?.email || "-"} icon={UserRound} />
+                  <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-1">
+                    <div className="rounded-md border border-borderGlow bg-base p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Joined</p>
+                      <p className="mt-3 text-sm font-semibold text-white">{formatDate(user?.createdAt)}</p>
                     </div>
-                  </div>
-                  <div className="mt-6 grid gap-3">
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-borderGlow bg-base px-4 py-3">
-                      <span className="text-sm text-slate-500">Joined</span>
-                      <span className="text-sm text-white">{formatDate(user?.createdAt)}</span>
+                    <div className="rounded-md border border-borderGlow bg-base p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Account type</p>
+                      <p className="mt-3 text-sm font-semibold capitalize text-white">{user?.role || "User"}</p>
                     </div>
                   </div>
                 </GlassPanel>
 
-                <GlassPanel>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase text-slate-500">Trading summary</p>
-                      <h3 className="mt-2 text-lg font-semibold text-white">Read-only main account totals</h3>
+                <GlassPanel className="overflow-hidden p-0 xl:col-span-8">
+                  <div className="border-b border-borderGlow px-5 py-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Trading summary</p>
+                        <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">Read-only account totals</h3>
+                      </div>
+                      {summaryError ? (
+                        <button type="button" onClick={loadSummary} className="rounded-lg border border-red-300/40 px-3 py-2 text-xs font-semibold text-red-100 transition hover:bg-red-500/10">
+                          Retry
+                        </button>
+                      ) : null}
                     </div>
-                    {summaryError ? (
-                      <button type="button" onClick={loadSummary} className="rounded-lg border border-red-300/40 px-3 py-2 text-xs font-semibold text-red-100 transition hover:bg-red-500/10">
-                        Retry
-                      </button>
-                    ) : null}
                   </div>
-                  {summaryLoading ? (
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-20 w-full" />)}
-                    </div>
-                  ) : summaryError ? (
-                    <div className="mt-5 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-                      <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span>{summaryError}</span>
-                    </div>
-                  ) : (
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {summaryCards.map((card) => (
-                        <div key={card.label} className="rounded-lg border border-borderGlow bg-base p-4">
-                          <p className="text-xs uppercase text-slate-500">{card.label}</p>
-                          <p className="mt-2 font-mono text-lg font-semibold text-white">{card.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="p-5">
+                    {summaryLoading ? (
+                      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                        {Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-24 w-full" />)}
+                      </div>
+                    ) : summaryError ? (
+                      <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+                        <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{summaryError}</span>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                        {summaryCards.map((card) => (
+                          <SummaryMetric key={card.label} label={card.label} value={card.value} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </GlassPanel>
               </section>
 
-              <form className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.45fr)_360px]" onSubmit={submitProfile}>
-                <div className="flex min-w-0 flex-col gap-6">
+              <form className="grid items-start gap-6 xl:grid-cols-12" onSubmit={submitProfile}>
+                <div className="flex min-w-0 flex-col gap-6 xl:col-span-8">
                   <GlassPanel className="overflow-hidden p-0">
-                    <div className="border-b border-borderGlow px-5 py-4">
-                      <p className="text-xs font-semibold uppercase text-slate-500">Editable profile</p>
-                      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="text-lg font-semibold text-white">Identity and contact details</h3>
-                        <UserRound className="h-5 w-5 text-cyan" aria-hidden="true" />
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-400">
-                        Trade Abhyas only needs your name, email, and mobile number for this virtual trading account.
-                      </p>
-                    </div>
-                    <div className="grid gap-4 p-5 lg:grid-cols-3">
+                    <SettingsCardHeader
+                      eyebrow="Editable profile"
+                      title="Identity and contact details"
+                      description="Keep your display name, email, and phone number organized for this virtual trading account."
+                      icon={UserRound}
+                    />
+                    <div className="grid gap-5 p-5 md:grid-cols-3">
                       <TextField
                         label="Full name"
                         value={profileForm.name}
@@ -476,16 +492,8 @@ const Settings = () => {
                   </GlassPanel>
 
                   <GlassPanel className="overflow-hidden p-0">
-                    <div className="border-b border-borderGlow px-5 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase text-slate-500">Trading profile</p>
-                          <h3 className="mt-2 text-lg font-semibold text-white">Experience and preferences</h3>
-                        </div>
-                        <BriefcaseBusiness className="h-5 w-5 text-cyan" aria-hidden="true" />
-                      </div>
-                    </div>
-                    <div className="grid gap-4 p-5 lg:grid-cols-3">
+                    <SettingsCardHeader eyebrow="Trading profile" title="Experience and preferences" icon={BriefcaseBusiness} />
+                    <div className="grid gap-5 p-5 md:grid-cols-3">
                       <SelectField
                         label="Trading experience"
                         value={profileForm.tradingExperience}
@@ -511,19 +519,19 @@ const Settings = () => {
                   </GlassPanel>
                 </div>
 
-                <aside className="flex min-w-0 flex-col gap-6 xl:sticky xl:top-6">
-                  <GlassPanel>
+                <aside className="flex min-w-0 flex-col gap-6 xl:col-span-4">
+                  <GlassPanel className="overflow-hidden p-0">
                     <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold uppercase text-slate-500">Account readiness</p>
-                        <h3 className="mt-2 text-lg font-semibold text-white">{profileCompletion}% complete</h3>
+                      <div className="min-w-0 p-5">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Account readiness</p>
+                        <h3 className="mt-2 text-lg font-semibold tracking-tight text-white">{profileCompletion}% complete</h3>
                       </div>
-                      <ShieldCheck className="h-6 w-6 text-cyan" aria-hidden="true" />
+                      <ShieldCheck className="mr-5 mt-5 h-6 w-6 shrink-0 text-cyan" aria-hidden="true" />
                     </div>
-                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-base">
-                      <div className="h-full rounded-full bg-cyan transition-all" style={{ width: `${profileCompletion}%` }} />
+                    <div className="mx-5 h-2 overflow-hidden rounded-full bg-base">
+                      <div className="h-full rounded-full bg-cyan transition-all duration-300" style={{ width: `${profileCompletion}%` }} />
                     </div>
-                    <dl className="mt-5 grid gap-3 text-sm">
+                    <dl className="grid gap-3 p-5 text-sm">
                       <div className="flex items-center justify-between gap-3">
                         <dt className="text-slate-500">Primary email</dt>
                         <dd className="truncate text-right font-semibold text-white">{profileForm.email || "Not set"}</dd>
@@ -539,12 +547,12 @@ const Settings = () => {
                     </dl>
                   </GlassPanel>
 
-                  <GlassPanel>
-                    <div className="flex items-center gap-2 border-b border-borderGlow pb-3">
-                      <Bell className="h-4 w-4 text-cyan" aria-hidden="true" />
-                      <h3 className="text-sm font-semibold uppercase text-slate-300">Notification Preferences</h3>
+                  <GlassPanel className="overflow-hidden p-0">
+                    <div className="flex items-center gap-2 border-b border-borderGlow px-5 py-4">
+                      <Bell className="h-4 w-4 shrink-0 text-cyan" aria-hidden="true" />
+                      <h3 className="text-sm font-bold uppercase tracking-wide text-slate-300">Notification preferences</h3>
                     </div>
-                    <div>
+                    <div className="px-5">
                       <ToggleRow
                         label="Order updates"
                         description="Notify me when orders are executed, rejected, cancelled, or queued."
@@ -588,29 +596,25 @@ const Settings = () => {
                     </div>
                   </GlassPanel>
 
-                  <GlassPanel>
-                    <div className="mb-4 rounded-lg border border-cyan/20 bg-cyan/10 p-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-xs font-semibold uppercase text-cyan">Beginner guidance</p>
-                          <p className="mt-1 text-sm text-slate-300">Replay the trading walkthrough anytime.</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={replayTradingTour}
-                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20"
-                        >
-                          <PlayCircle className="h-4 w-4" aria-hidden="true" />
-                          Replay Trading Tour
-                        </button>
-                      </div>
+                  <GlassPanel className="space-y-4">
+                    <div className="rounded-lg border border-cyan/20 bg-cyan/10 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-cyan">Beginner guidance</p>
+                      <p className="mt-2 text-sm leading-5 text-slate-300">Replay the trading walkthrough anytime.</p>
+                      <button
+                        type="button"
+                        onClick={replayTradingTour}
+                        className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-4 py-2 text-sm font-semibold text-cyan transition hover:bg-cyan/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20"
+                      >
+                        <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                        Replay Trading Tour
+                      </button>
                     </div>
-                  {profileErrors.form ? <p className="text-sm text-red-300">{profileErrors.form}</p> : null}
-                  {profileStatus ? <p className="text-sm text-emerald-300">{profileStatus}</p> : null}
+                    {profileErrors.form ? <p className="text-sm text-red-300">{profileErrors.form}</p> : null}
+                    {profileStatus ? <p className="text-sm text-emerald-300">{profileStatus}</p> : null}
                     <button
                       type="submit"
                       disabled={profileSaving}
-                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cyan px-4 py-3 text-sm font-semibold text-base transition hover:bg-cyan/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cyan px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/30 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Save className="h-4 w-4" aria-hidden="true" />
                       {profileSaving ? "Saving..." : "Save Profile"}
@@ -690,7 +694,7 @@ const Settings = () => {
                           <Icon className="h-5 w-5" aria-hidden="true" />
                         </span>
                         {selected ? (
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan text-base">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-cyan text-slate-950">
                             <Check className="h-4 w-4" aria-hidden="true" />
                           </span>
                         ) : null}

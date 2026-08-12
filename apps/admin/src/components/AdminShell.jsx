@@ -1,9 +1,72 @@
 import { useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, Monitor, Moon, Sun, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import { adminNavigationGroups, isAdminNavigationItemActive } from "../config/navigation";
 import { websiteUrl } from "../config/urls";
+
+const getStoredThemePreference = () => {
+  if (typeof window === "undefined") return "system";
+  return window.localStorage.getItem("themePreference") || window.localStorage.getItem("theme") || "system";
+};
+
+const getSystemTheme = () => {
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
+const themeOptions = [
+  { id: "system", label: "System", icon: Monitor },
+  { id: "light", label: "Light", icon: Sun },
+  { id: "dark", label: "Dark", icon: Moon }
+];
+
+const ThemeSwitcher = ({ compact = false }) => {
+  const [themePreference, setThemePreference] = useState(getStoredThemePreference);
+  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
+  const resolvedTheme = themePreference === "system" ? systemTheme : themePreference;
+
+  useEffect(() => {
+    window.localStorage.setItem("themePreference", themePreference);
+    window.localStorage.setItem("theme", themePreference);
+    document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+  }, [resolvedTheme, themePreference]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => setSystemTheme(media.matches ? "dark" : "light");
+    handleChange();
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
+
+  return (
+    <div className={compact ? "grid grid-cols-3 gap-1 rounded-lg border border-borderGlow bg-base p-1" : "rounded-xl border border-borderGlow bg-base p-2"}>
+      {!compact ? <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Appearance</p> : null}
+      <div className={compact ? "contents" : "grid grid-cols-3 gap-1"}>
+        {themeOptions.map((option) => {
+          const Icon = option.icon;
+          const active = themePreference === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setThemePreference(option.id)}
+              aria-label={`Use ${option.label.toLowerCase()} mode`}
+              title={`${option.label} mode`}
+              className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg px-2 text-xs font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-cyan/20 ${
+                active ? "bg-cyan text-slate-950" : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+              }`}
+            >
+              <Icon className="h-4 w-4" aria-hidden="true" />
+              {!compact ? <span>{option.label}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const AdminNavItem = ({ item, onNavigate }) => {
   const location = useLocation();
@@ -101,7 +164,7 @@ const AdminShell = ({ children }) => {
   }, [drawerOpen]);
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-base text-white">
+    <div className="min-h-dvh overflow-x-hidden bg-base text-white lg:pl-[248px]">
       <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b border-borderGlow bg-[#0F1724]/95 px-4 backdrop-blur lg:hidden">
         <div className="flex items-center gap-3">
           <img src="/tradeabhyas-logo.png" alt="Trade Abhyas" className="h-10 w-10 rounded-lg object-contain" />
@@ -120,8 +183,8 @@ const AdminShell = ({ children }) => {
         </button>
       </header>
 
-      <div className="grid min-h-[calc(100dvh-4rem)] grid-cols-1 lg:min-h-dvh lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="sticky top-0 hidden h-dvh min-h-0 flex-col border-r border-borderGlow bg-[#0F1724] px-3 py-4 lg:flex">
+      <div className="min-h-[calc(100dvh-4rem)] lg:min-h-dvh">
+        <aside className="fixed inset-y-0 left-0 z-50 hidden w-[248px] min-h-0 flex-col border-r border-borderGlow bg-[#0F1724] px-3 py-4 lg:flex">
           <Link
             to="/"
             className="mb-3 flex shrink-0 items-center gap-3 rounded-xl border border-borderGlow bg-base px-3 py-3 outline-none transition hover:border-cyan/30 focus-visible:border-cyan/60 focus-visible:ring-2 focus-visible:ring-cyan/20"
@@ -139,6 +202,10 @@ const AdminShell = ({ children }) => {
 
           <AdminNavigation />
 
+          <div className="mt-3 shrink-0">
+            <ThemeSwitcher />
+          </div>
+
           <div className="mt-3 shrink-0 border-t border-borderGlow px-3 pt-3 text-xs leading-5 text-slate-500">
             Role-protected workspace
           </div>
@@ -151,12 +218,15 @@ const AdminShell = ({ children }) => {
                 <p className="text-xs font-semibold uppercase text-slate-500">Management Workspace</p>
                 <h2 className="mt-1 text-xl font-semibold text-white">Trade Abhyas Platform Control</h2>
               </div>
-              <a
-                href={websiteUrl}
-                className="rounded-lg border border-borderGlow bg-base px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-cyan/50 hover:text-cyan focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20"
-              >
-                Website
-              </a>
+              <div className="flex flex-wrap items-center gap-3">
+                <ThemeSwitcher compact />
+                <a
+                  href={websiteUrl}
+                  className="rounded-lg border border-borderGlow bg-base px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-cyan/50 hover:text-cyan focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20"
+                >
+                  Website
+                </a>
+              </div>
             </header>
             {children}
           </div>
@@ -191,6 +261,9 @@ const AdminShell = ({ children }) => {
             </div>
             <div className="flex min-h-0 flex-1 flex-col px-4 py-4">
               <AdminNavigation onNavigate={() => setDrawerOpen(false)} />
+              <div className="mt-3">
+                <ThemeSwitcher />
+              </div>
             </div>
           </aside>
         </div>

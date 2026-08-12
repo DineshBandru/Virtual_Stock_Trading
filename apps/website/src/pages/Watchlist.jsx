@@ -352,7 +352,7 @@ const Watchlist = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Watchlist"
         subtitle="Build multiple trading watchlists, track live prices, and manage symbols from one place."

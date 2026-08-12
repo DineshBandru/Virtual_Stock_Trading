@@ -2,11 +2,14 @@ const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Competition = require("../models/Competition");
 const Order = require("../models/Order");
+const mongoose = require("mongoose");
 const { syncNseEquityInstruments } = require("../services/instrumentService");
+const { cleanupTestingData } = require("../services/testingDataCleanupService");
+const { testingAccountFilter } = require("../utils/testData");
 
 const getUsers = async (req, res, next) => {
   try {
-    const users = await User.find().select("name email role balance createdAt");
+    const users = await User.find(testingAccountFilter).select("name email role balance createdAt");
     return res.json(users);
   } catch (err) {
     return next(err);
@@ -20,6 +23,33 @@ const getTransactions = async (req, res, next) => {
       .limit(500)
       .lean();
     return res.json(items);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+const updateUserBalance = async (req, res, next) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const balance = Number(req.body.balance);
+    if (!Number.isFinite(balance) || balance < 0) {
+      return res.status(400).json({ message: "Enter a valid non-negative balance" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { balance },
+      { new: true, select: "name email role balance createdAt" }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json(user);
   } catch (err) {
     return next(err);
   }
@@ -149,7 +179,7 @@ const archiveCompetition = async (req, res, next) => {
 const getStats = async (req, res, next) => {
   try {
     const [users, transactions, orders] = await Promise.all([
-      User.countDocuments(),
+      User.countDocuments(testingAccountFilter),
       Transaction.countDocuments(),
       Order.countDocuments()
     ]);
@@ -192,6 +222,15 @@ const getStats = async (req, res, next) => {
   }
 };
 
+const cleanupTestingRecords = async (req, res, next) => {
+  try {
+    const result = await cleanupTestingData();
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+};
+
 const syncInstruments = async (req, res, next) => {
   try {
     const result = await syncNseEquityInstruments();
@@ -203,11 +242,13 @@ const syncInstruments = async (req, res, next) => {
 
 module.exports = {
   getUsers,
+  updateUserBalance,
   getTransactions,
   getOrders,
   createCompetition,
   getCompetitions,
   archiveCompetition,
   getStats,
+  cleanupTestingRecords,
   syncInstruments
 };

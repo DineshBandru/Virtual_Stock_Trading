@@ -141,6 +141,14 @@ const Login = ({ inline = false }) => {
         >
           {showForgotPassword ? "Back to login" : "Forgot password?"}
         </button>
+        {!showForgotPassword ? (
+          <div className="mt-2 rounded-lg border border-borderGlow bg-base px-4 py-3 text-center text-sm text-slate-400">
+            New to Trade Abhyas?{" "}
+            <Link to="/register" className="font-semibold text-cyan transition hover:text-cyan/80">
+              Create a new account
+            </Link>
+          </div>
+        ) : null}
       </form>
     </div>
   );

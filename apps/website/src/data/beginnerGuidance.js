@@ -17,7 +17,8 @@ export const guidanceHelp = {
   triggered: "The trigger condition has been reached and the order is now active.",
   executed: "The trade completed and will appear in Transactions.",
   rejected: "The order could not be accepted or executed, usually because a required condition was not met.",
-  cancelled: "The order was cancelled before execution, so no trade occurred."
+  cancelled: "The order was cancelled before execution, so no trade occurred.",
+  quantity: "Quantity means how many shares you want to buy or sell."
 };
 
 export const startTradingSteps = [

@@ -99,7 +99,7 @@ const Competitions = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <PageHeader title="Trading Competitions" subtitle="Join competitions with separate virtual balances." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
@@ -112,7 +112,7 @@ const Competitions = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <PageHeader title="Trading Competitions" subtitle="Join competitions with separate virtual balances." />
         <GlassPanel className="border-red-500/30 bg-red-500/10">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -138,7 +138,7 @@ const Competitions = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Trading Competitions"
         subtitle="Competition balances and rankings are separate from your main trading account."
@@ -188,7 +188,7 @@ const Competitions = () => {
                   type="button"
                   disabled={joiningId === competition._id || competition.status === "completed" || competition.status === "ended"}
                   onClick={() => joinCompetition(competition._id)}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan px-4 py-3 text-sm font-semibold text-base transition hover:bg-cyan/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Users className="h-4 w-4" />
                   {joiningId === competition._id ? "Joining..." : "Join Competition"}

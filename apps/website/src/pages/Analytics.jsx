@@ -264,7 +264,7 @@ const Analytics = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <PageHeader title="Trading Performance" subtitle="Closed-trade analytics, risk practice, and reflection." />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, index) => <LoadingCard key={index} />)}
@@ -275,7 +275,7 @@ const Analytics = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <PageHeader title="Trading Performance" subtitle="Closed-trade analytics, risk practice, and reflection." />
         <GlassPanel className="border-red-500/30 bg-red-500/10">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -297,7 +297,7 @@ const Analytics = () => {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Trading Performance"

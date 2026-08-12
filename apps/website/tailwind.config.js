@@ -12,8 +12,8 @@ export default {
         borderGlow: "rgb(var(--color-border) / <alpha-value>)"
       },
       fontFamily: {
-        heading: ["Syne", "sans-serif"],
-        mono: ["DM Mono", "monospace"]
+        heading: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"]
       },
       boxShadow: {
         glow: "0 18px 44px rgba(0, 0, 0, 0.28)",

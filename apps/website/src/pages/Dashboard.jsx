@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle2, GraduationCap, MousePointerClick, Search } from "lucide-react";
+import { CheckCircle2, GraduationCap, MousePointerClick, Search, TrendingDown, TrendingUp } from "lucide-react";
 import GlassPanel from "../components/GlassPanel";
 import HelpTooltip from "../components/HelpTooltip";
 import PageHeader from "../components/PageHeader";
@@ -44,6 +44,17 @@ const formatCompact = (value) =>
   Number.isFinite(value) ? compactInr.format(value) : "N/A";
 
 const stripNseSuffix = (symbol) => symbol.replace(/\.NS$/i, "");
+
+const MarketMoveIcon = ({ value, className = "h-4 w-4" }) => {
+  const isPositive = Number(value) >= 0;
+  const Icon = isPositive ? TrendingUp : TrendingDown;
+  return <Icon className={className} aria-hidden="true" />;
+};
+
+const movementTone = (value) =>
+  Number(value) >= 0
+    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"
+    : "border-red-500/30 bg-red-500/10 text-red-500 dark:text-red-400";
 
 const ensureNseSuffix = (symbol) => {
   const normalized = String(symbol || "").trim().toUpperCase();
@@ -475,7 +486,7 @@ const Dashboard = () => {
               <button
                 type="submit"
                 disabled={searchLoading || (searchSymbol.trim().length >= 2 && !searchResults.length && !searchSymbol.trim().toUpperCase().endsWith(".NS"))}
-                className="rounded-2xl bg-cyan px-5 py-3 text-sm font-semibold text-base transition hover:bg-cyan/90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl bg-cyan px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {searchLoading ? "Searching..." : "Search"}
               </button>
@@ -619,21 +630,20 @@ const Dashboard = () => {
                           </p>
                         </div>
                         <div
-                          className={`flex h-8 min-w-12 items-center justify-center rounded-md border px-2 text-xs font-semibold ${
-                            item.changePct >= 0
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                              : "border-red-500/30 bg-red-500/10 text-red-400"
-                          }`}
+                          className={`flex h-10 w-10 items-center justify-center rounded-md border ${movementTone(item.changePct)}`}
+                          aria-label={item.changePct >= 0 ? "Price trending upward" : "Price trending downward"}
+                          title={item.changePct >= 0 ? "Price trending upward" : "Price trending downward"}
                         >
-                          {item.changePct >= 0 ? "Up" : "Down"}
+                          <MarketMoveIcon value={item.changePct} className="h-5 w-5" />
                         </div>
                       </div>
                       <div className="mt-4 flex items-center justify-between text-sm">
-                        <span className={item.changePct >= 0 ? "text-emerald-400" : "text-red-400"}>
+                        <span className={`inline-flex items-center gap-1.5 ${item.changePct >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                          <MarketMoveIcon value={item.changePct} />
                           {formatPercent(item.changePct)}
                         </span>
                         <span className="text-xs text-[#6F7487]">
-                          Vol {formatCompact(item.volume)}
+                          Volume {formatCompact(item.volume)}
                         </span>
                       </div>
                     </div>
@@ -671,7 +681,10 @@ const Dashboard = () => {
                       </div>
                       <div className="text-right">
                         <p className="font-mono text-white">{formatCurrency(item.currentPrice)}</p>
-                        <p className="text-xs text-emerald-400">{formatPercent(item.changePct)}</p>
+                        <p className="inline-flex items-center justify-end gap-1.5 text-xs text-emerald-500 dark:text-emerald-400">
+                          <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                          {formatPercent(item.changePct)}
+                        </p>
                       </div>
                     </Link>
                   ))
@@ -708,7 +721,10 @@ const Dashboard = () => {
                       </div>
                       <div className="text-right">
                         <p className="font-mono text-white">{formatCurrency(item.currentPrice)}</p>
-                        <p className="text-xs text-red-400">{formatPercent(item.changePct)}</p>
+                        <p className="inline-flex items-center justify-end gap-1.5 text-xs text-red-500 dark:text-red-400">
+                          <TrendingDown className="h-4 w-4" aria-hidden="true" />
+                          {formatPercent(item.changePct)}
+                        </p>
                       </div>
                     </Link>
                   ))
@@ -748,10 +764,11 @@ const Dashboard = () => {
                       {formatCurrency(item.currentPrice)}
                     </p>
                     <div className="mt-2 flex items-center justify-between text-xs">
-                      <span className={item.changePct >= 0 ? "text-emerald-400" : "text-red-400"}>
+                      <span className={`inline-flex items-center gap-1.5 ${item.changePct >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                        <MarketMoveIcon value={item.changePct} />
                         {formatPercent(item.changePct)}
                       </span>
-                      <span className="text-[#A1A1B5]">Vol {formatCompact(item.volume)}</span>
+                      <span className="text-[#A1A1B5]">Volume {formatCompact(item.volume)}</span>
                     </div>
                   </Link>
                 ))
@@ -890,7 +907,8 @@ const Dashboard = () => {
                         <p className="text-xs font-medium text-[#A1A1B5]">{symbol}</p>
                         <p className="mt-2 font-mono text-lg text-white">{formatCurrency(currentPrice)}</p>
                       </div>
-                      <p className={`text-sm ${changePct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      <p className={`inline-flex items-center gap-1.5 text-sm ${changePct >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                        <MarketMoveIcon value={changePct} />
                         {formatPercent(changePct)}
                       </p>
                     </Link>

@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Portfolio = require("../models/Portfolio");
 const Transaction = require("../models/Transaction");
 const { getQuote } = require("./market");
+const { testingAccountFilter } = require("./testData");
 
 const STARTING_BALANCE = 1000000;
 
@@ -16,7 +17,7 @@ const getQuotePrice = async (symbol) => {
 };
 
 const buildLeaderboard = async (currentUserId) => {
-  const users = await User.find({ role: { $ne: "admin" } }).select("name balance createdAt");
+  const users = await User.find({ role: { $ne: "admin" }, ...testingAccountFilter }).select("name balance createdAt");
   const userIds = users.map((user) => user._id);
   const holdings = await Portfolio.find({ userId: { $in: userIds } }).lean();
   const tradeCounts = await Transaction.aggregate([

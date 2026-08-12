@@ -31,7 +31,7 @@ const LevelRow = ({ level, tone, maxQty, align = "left" }) => {
   const textClass = tone === "buy" ? "text-emerald-300" : "text-red-300";
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-[#080910]/70 px-3 py-2 ${textClass}`}>
+    <div className={`relative overflow-hidden rounded-lg border border-white/10 bg-[#080910]/70 px-3 py-2 ${textClass}`}>
       <div
         className={`absolute inset-y-0 ${align === "right" ? "right-0" : "left-0"} ${barClass}`}
         style={{ width: `${width}%` }}
@@ -58,20 +58,22 @@ const MarketDepthPanel = ({ depth, loading = false, error = "", symbol = "" }) =
   const maxSellQty = Math.max(...asks.map((level) => level.quantity || 0), 0);
 
   return (
-    <GlassPanel className="space-y-5">
+    <GlassPanel className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase text-[#A1A1B5]">Market Depth</p>
-          <h3 className="mt-2 text-lg font-semibold text-white">Level 2 Order Book</h3>
-          <p className="mt-1 text-xs text-[#6F7487]">{symbol ? `${symbol} depth from pending OMS orders` : "Live order book"}</p>
+          <p className="text-xs font-medium uppercase text-[#A1A1B5]">Trade Abhyas Pending Orders</p>
+          <h3 className="mt-2 text-lg font-semibold text-white">Virtual Pending Orders</h3>
+          <p className="mt-1 text-xs text-[#6F7487]">
+            {symbol ? `${symbol} pending virtual orders inside Trade Abhyas. This is not NSE market depth.` : "Pending virtual orders inside Trade Abhyas. This is not NSE market depth."}
+          </p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-[#1A1B2B] px-3 py-1 text-xs font-medium text-[#A1A1B5]">
+        <div className="rounded-lg border border-white/10 bg-[#1A1B2B] px-3 py-1 text-xs font-medium text-[#A1A1B5]">
           Real-time
         </div>
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}
         </div>
       ) : null}
@@ -83,7 +85,7 @@ const MarketDepthPanel = ({ depth, loading = false, error = "", symbol = "" }) =
           { label: "Total Buy Qty", value: depth?.totalBuyQty },
           { label: "Total Sell Qty", value: depth?.totalSellQty }
         ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-white/10 bg-[#161725] px-4 py-3">
+          <div key={item.label} className="rounded-lg border border-white/10 bg-[#161725] px-4 py-3">
             <p className="text-xs font-medium uppercase text-[#A1A1B5]">{item.label}</p>
             <div className="mt-2 font-mono text-lg text-white">
               {loading ? <Skeleton className="h-5 w-20" /> : formatNumber(item.value)}
@@ -93,7 +95,7 @@ const MarketDepthPanel = ({ depth, loading = false, error = "", symbol = "" }) =
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h4 className="text-sm font-semibold uppercase text-emerald-300">Buy Side</h4>
             <span className="text-xs text-[#6F7487]">Price / Qty / Orders</span>
@@ -101,21 +103,21 @@ const MarketDepthPanel = ({ depth, loading = false, error = "", symbol = "" }) =
           <div className="space-y-2">
             {loading ? (
               Array.from({ length: 5 }).map((_, index) => (
-                <Skeleton key={index} className="h-11 w-full rounded-2xl" />
+                <Skeleton key={index} className="h-11 w-full rounded-lg" />
               ))
             ) : bids.length > 0 ? (
               bids.map((level) => (
                 <LevelRow key={`${level.price}-${level.orders}-buy`} level={level} tone="buy" maxQty={maxBuyQty} align="left" />
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910]/70 px-4 py-6 text-center text-sm text-[#6F7487]">
+              <div className="rounded-lg border border-dashed border-white/10 bg-[#080910]/70 px-4 py-6 text-center text-sm text-[#6F7487]">
                 No pending buy orders
               </div>
             )}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h4 className="text-sm font-semibold uppercase text-red-300">Sell Side</h4>
             <span className="text-xs text-[#6F7487]">Price / Qty / Orders</span>
@@ -123,14 +125,14 @@ const MarketDepthPanel = ({ depth, loading = false, error = "", symbol = "" }) =
           <div className="space-y-2">
             {loading ? (
               Array.from({ length: 5 }).map((_, index) => (
-                <Skeleton key={index} className="h-11 w-full rounded-2xl" />
+                <Skeleton key={index} className="h-11 w-full rounded-lg" />
               ))
             ) : asks.length > 0 ? (
               asks.map((level) => (
                 <LevelRow key={`${level.price}-${level.orders}-sell`} level={level} tone="sell" maxQty={maxSellQty} align="right" />
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-[#080910]/70 px-4 py-6 text-center text-sm text-[#6F7487]">
+              <div className="rounded-lg border border-dashed border-white/10 bg-[#080910]/70 px-4 py-6 text-center text-sm text-[#6F7487]">
                 No pending sell orders
               </div>
             )}

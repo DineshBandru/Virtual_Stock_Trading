@@ -28,10 +28,18 @@ export const getNseMarketStatus = (quote = null) => {
   const quoteOpen = ["REGULAR", "OPEN"].includes(quoteState);
   const quoteClosed = ["CLOSED", "POST", "POSTPOST", "PRE", "PREPRE", "PREMARKET", "POSTMARKET"].includes(quoteState);
   const open = quoteOpen || (!quoteClosed && timeOpen);
+  const displayState = open
+    ? "Market Open"
+    : ["PRE", "PREPRE", "PREMARKET"].includes(quoteState)
+      ? "Pre-Market"
+      : ["POST", "POSTPOST", "POSTMARKET"].includes(quoteState)
+        ? "Post-Market"
+        : "Market Closed";
 
   return {
     open,
-    label: open ? "NSE Market Open" : "NSE Market Closed",
+    label: `NSE ${displayState}`,
+    displayState,
     dot: open ? "bg-emerald-400" : "bg-amber-400",
     textTone: open ? "text-emerald-400" : "text-amber-300",
     tone: open ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-amber-500/30 bg-amber-500/10 text-amber-200",

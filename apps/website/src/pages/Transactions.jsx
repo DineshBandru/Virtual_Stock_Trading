@@ -118,7 +118,7 @@ const Transactions = () => {
   }, [transactions]);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Transaction History"
         subtitle="Review every executed buy and sell with quantity, price, value, and timestamps."

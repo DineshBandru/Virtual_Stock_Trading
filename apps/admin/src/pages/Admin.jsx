@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Archive, CircleAlert, RefreshCcw, Search } from "lucide-react";
+import { Archive, CircleAlert, RefreshCcw, Save, Search } from "lucide-react";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
@@ -141,6 +141,9 @@ const Admin = ({ view = "dashboard" }) => {
   const [competitions, setCompetitions] = useState([]);
   const [dataWarnings, setDataWarnings] = useState([]);
   const [userQuery, setUserQuery] = useState("");
+  const [balanceEdits, setBalanceEdits] = useState({});
+  const [balanceSaving, setBalanceSaving] = useState({});
+  const [balanceError, setBalanceError] = useState("");
   const [orderStatus, setOrderStatus] = useState("All");
   const [competitionForm, setCompetitionForm] = useState({
     name: "",
@@ -260,6 +263,35 @@ const Admin = ({ view = "dashboard" }) => {
     }
   };
 
+  const saveUserBalance = async (user) => {
+    const draft = balanceEdits[user._id] ?? user.balance ?? "";
+    const nextBalance = Number(draft);
+
+    if (!Number.isFinite(nextBalance) || nextBalance < 0) {
+      setBalanceError("Enter a valid non-negative balance.");
+      return;
+    }
+
+    try {
+      setBalanceError("");
+      setBalanceSaving((current) => ({ ...current, [user._id]: true }));
+      const response = await api.patch(`/api/admin/users/${user._id}/balance`, { balance: nextBalance });
+      const updated = response.data;
+      setUsers((items) =>
+        items.map((item) => (item._id === updated._id ? { ...item, balance: updated.balance } : item))
+      );
+      setBalanceEdits((current) => {
+        const next = { ...current };
+        delete next[user._id];
+        return next;
+      });
+    } catch (err) {
+      setBalanceError(getApiErrorMessage(err, "Failed to update balance"));
+    } finally {
+      setBalanceSaving((current) => ({ ...current, [user._id]: false }));
+    }
+  };
+
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={loadAdminData} />;
 
@@ -299,6 +331,11 @@ const Admin = ({ view = "dashboard" }) => {
           </div>
 
           <div className="mt-6">
+            {balanceError ? (
+              <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {balanceError}
+              </div>
+            ) : null}
             {filteredUsers.length === 0 ? (
               <EmptyState>No users found.</EmptyState>
             ) : (
@@ -306,8 +343,8 @@ const Admin = ({ view = "dashboard" }) => {
                 <div className="grid grid-cols-12 bg-slate-900/50 px-4 py-3 text-xs font-semibold uppercase text-slate-500">
                   <span className="col-span-4">User</span>
                   <span className="col-span-2">Role</span>
-                  <span className="col-span-3 text-right">Balance</span>
-                  <span className="col-span-3 text-right">Created</span>
+                  <span className="col-span-4 text-right">Balance</span>
+                  <span className="col-span-2 text-right">Created</span>
                 </div>
                 {filteredUsers.map((user) => (
                   <div key={user._id} className="grid grid-cols-12 items-center gap-3 bg-panel px-4 py-4">
@@ -318,8 +355,28 @@ const Admin = ({ view = "dashboard" }) => {
                     <div className="col-span-2">
                       <Badge className={roleTone[user.role] || roleTone.user}>{user.role || "user"}</Badge>
                     </div>
-                    <p className="col-span-3 text-right font-mono text-sm text-slate-300">{formatCurrency(user.balance)}</p>
-                    <p className="col-span-3 text-right text-sm text-slate-400">{formatDateTime(user.createdAt)}</p>
+                    <div className="col-span-4 flex items-center justify-end gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={balanceEdits[user._id] ?? user.balance ?? ""}
+                        onChange={(event) =>
+                          setBalanceEdits((current) => ({ ...current, [user._id]: event.target.value }))
+                        }
+                        aria-label={`Virtual balance for ${user.email}`}
+                        className="h-10 w-40 rounded-lg border border-borderGlow bg-base px-3 text-right font-mono text-sm text-white outline-none transition focus:border-cyan focus:ring-2 focus:ring-cyan/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => saveUserBalance(user)}
+                        disabled={balanceSaving[user._id]}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-3 text-xs font-semibold text-cyan transition hover:bg-cyan/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Save className="h-4 w-4" aria-hidden="true" />
+                        {balanceSaving[user._id] ? "Saving" : "Save"}
+                      </button>
+                    </div>
+                    <p className="col-span-2 text-right text-sm text-slate-400">{formatDateTime(user.createdAt)}</p>
                   </div>
                 ))}
               </TableShell>
@@ -356,7 +413,7 @@ const Admin = ({ view = "dashboard" }) => {
                 <div key={transaction._id} className="grid grid-cols-12 items-center gap-3 bg-panel px-4 py-4">
                   <div className="col-span-3 min-w-0">
                     <p className="truncate font-mono text-sm font-semibold text-white">{transaction.symbol}</p>
-                    <p className="truncate text-xs text-slate-400">{transaction.companyName || "Company unavailable"}</p>
+                    <p className="truncate text-xs text-slate-400">{transaction.companyName || "NSE equity instrument"}</p>
                   </div>
                   <div className="col-span-2">
                     <Badge className={typeTone[transaction.type] || "border-borderGlow bg-base text-slate-300"}>{transaction.type || "-"}</Badge>
@@ -434,8 +491,9 @@ const Admin = ({ view = "dashboard" }) => {
                     <p className="col-span-1 text-right font-mono text-sm text-slate-300">{formatNumber(order.quantity)}</p>
                     <div className="col-span-2 text-right font-mono text-xs leading-5 text-slate-400">
                       <p className="text-sm text-slate-300">{formatCurrency(order.price)}</p>
-                      <p>L {formatCurrency(order.limitPrice)} / T {formatCurrency(order.triggerPrice)}</p>
-                      <p>Exec {formatCurrency(order.executionPrice)}</p>
+                      <p>Limit {formatCurrency(order.limitPrice)}</p>
+                      <p>Trigger {formatCurrency(order.triggerPrice)}</p>
+                      <p>Executed {formatCurrency(order.executionPrice)}</p>
                     </div>
                     <div className="col-span-2">
                       <Badge className={statusTone[order.status] || statusTone.Pending}>{order.status || "-"}</Badge>
@@ -452,7 +510,7 @@ const Admin = ({ view = "dashboard" }) => {
                       {order.cancelledAt ? <p>Cancelled {formatDateTime(order.cancelledAt)}</p> : null}
                     </div>
                     <div className="col-span-2 min-w-0 text-right">
-                      <p className="truncate text-sm text-slate-300">{order.userName || order.user?.name || "Unknown user"}</p>
+                      <p className="truncate text-sm text-slate-300">{order.userName || order.user?.name || "Account unavailable"}</p>
                       <p className="truncate text-xs text-slate-400">{order.userEmail || order.user?.email || ""}</p>
                     </div>
                   </div>
@@ -546,7 +604,7 @@ const Admin = ({ view = "dashboard" }) => {
               <button
                 type="submit"
                 disabled={competitionSaving}
-                className="min-h-11 w-full rounded-lg bg-cyan px-4 py-3 text-sm font-semibold text-base transition hover:bg-cyan/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-11 w-full rounded-lg bg-cyan px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {competitionSaving ? "Creating..." : "Create"}
               </button>
@@ -657,7 +715,7 @@ const Admin = ({ view = "dashboard" }) => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-mono text-sm font-semibold text-white">{transaction.symbol}</p>
-                      <p className="truncate text-xs text-slate-400">{transaction.companyName || "Company unavailable"}</p>
+                      <p className="truncate text-xs text-slate-400">{transaction.companyName || "NSE equity instrument"}</p>
                     </div>
                     <Badge className={typeTone[transaction.type] || "border-borderGlow bg-base text-slate-300"}>{transaction.type || "-"}</Badge>
                   </div>
@@ -688,7 +746,7 @@ const Admin = ({ view = "dashboard" }) => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-mono text-sm font-semibold text-white">{order.symbol}</p>
-                      <p className="truncate text-xs text-slate-400">{order.userEmail || order.user?.email || "Unknown user"}</p>
+                      <p className="truncate text-xs text-slate-400">{order.userEmail || order.user?.email || "Account unavailable"}</p>
                     </div>
                     <Badge className={statusTone[order.status] || statusTone.Pending}>{order.status || "-"}</Badge>
                   </div>

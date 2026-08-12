@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { Minus, Plus } from "lucide-react";
 import GlassPanel from "./GlassPanel";
 import HelpTooltip from "./HelpTooltip";
-import MarketStatusBadge from "./MarketStatusBadge";
 import { getRejectionGuidance, orderStatusGuidance } from "../data/beginnerGuidance";
 import api from "../utils/api";
 import { getApiErrorMessage } from "../utils/errorMessage";
+import { getNseMarketStatus } from "../utils/marketStatus";
 import useAuth from "../hooks/useAuth";
 import useToast from "../hooks/useToast";
 
@@ -24,10 +25,17 @@ const formatCurrency = (value) =>
 const getOrderTypeLabel = (value) => orderTypes.find((item) => item.value === value)?.label || value;
 
 const orderTypeHelperText = {
-  MARKET: "Market is the simplest practice order. It uses the current quote when execution is allowed.",
+  MARKET: "Attempts to trade at the available market price when execution is allowed.",
   LIMIT: "Limit waits for your chosen price or better. It may stay Pending if the price is not reached.",
   STOP_LOSS: "Stop-Loss waits for a trigger price before trying to exit a holding.",
   STOP_LIMIT: "Stop-Limit waits for a trigger, then behaves like a Limit order with your price control."
+};
+
+const sanitizeQuantity = (value) => {
+  const digits = String(value || "").replace(/[^\d]/g, "");
+  if (!digits) return "";
+  const parsed = Number(digits);
+  return Number.isInteger(parsed) && parsed > 0 ? String(parsed) : "";
 };
 
 const OrderReviewModal = ({ open, review, submitting, onBack, onConfirm }) => {
@@ -206,6 +214,8 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
   const [quantity, setQuantity] = useState("");
   const [triggerPrice, setTriggerPrice] = useState("");
   const [limitPrice, setLimitPrice] = useState("");
+  const [holdingQuantity, setHoldingQuantity] = useState(0);
+  const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -214,6 +224,7 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
   const lastPrice = Number(quote?.c);
   const hasValidPrice = Number.isFinite(lastPrice) && lastPrice > 0;
   const availableCash = Number(user?.balance);
+  const marketStatus = getNseMarketStatus(quote);
   const needsTrigger = orderType === "STOP_LOSS" || orderType === "STOP_LIMIT";
   const needsLimit = orderType === "LIMIT" || orderType === "STOP_LIMIT";
   const estimatedPrice = needsLimit && Number.isFinite(Number(limitPrice)) && Number(limitPrice) > 0
@@ -221,13 +232,48 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
     : hasValidPrice
       ? lastPrice
       : null;
+  const parsedQuantity = Number(quantity);
+  const hasQuantity = Number.isInteger(parsedQuantity) && parsedQuantity > 0;
   const estimatedNotional = useMemo(() => {
-    const qty = Number(quantity);
-    if (!Number.isInteger(qty) || qty <= 0 || !Number.isFinite(estimatedPrice)) {
+    if (!hasQuantity || !Number.isFinite(estimatedPrice)) {
       return 0;
     }
-    return qty * estimatedPrice;
-  }, [quantity, estimatedPrice]);
+    return parsedQuantity * estimatedPrice;
+  }, [estimatedPrice, hasQuantity, parsedQuantity]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadHolding = async () => {
+      if (!symbol || !user) {
+        setHoldingQuantity(0);
+        return;
+      }
+
+      try {
+        setHoldingsLoading(true);
+        const response = await api.get("/api/portfolio");
+        const holdings = Array.isArray(response.data) ? response.data : [];
+        const currentHolding = holdings.find((item) => String(item.symbol || "").toUpperCase() === String(symbol).toUpperCase());
+        if (active) {
+          setHoldingQuantity(Number(currentHolding?.quantity) || 0);
+        }
+      } catch {
+        if (active) {
+          setHoldingQuantity(0);
+        }
+      } finally {
+        if (active) {
+          setHoldingsLoading(false);
+        }
+      }
+    };
+
+    loadHolding();
+    return () => {
+      active = false;
+    };
+  }, [symbol, user]);
 
   const resetPriceFields = (nextOrderType) => {
     const nextNeedsTrigger = nextOrderType === "STOP_LOSS" || nextOrderType === "STOP_LIMIT";
@@ -236,46 +282,52 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
     if (!nextNeedsLimit) setLimitPrice("");
   };
 
-  const validateOrder = useCallback(() => {
-    const parsedQuantity = Number(quantity);
-    if (!user) {
-      setError("Sign in before placing an order");
-      return null;
-    }
-    if (!symbol) {
-      setError("Symbol is required");
-      return null;
-    }
-    if (!String(symbol).toUpperCase().endsWith(".NS")) {
-      setError("Select a valid NSE symbol before placing an order");
-      return null;
-    }
-    if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
-      setError("Quantity must be a positive whole number");
-      return null;
-    }
-    if (!hasValidPrice) {
-      setError("Market price is unavailable. Try again after the quote loads.");
-      return null;
-    }
+  const updateQuantity = (value) => {
+    setQuantity(sanitizeQuantity(value));
+    setError("");
+  };
+
+  const stepQuantity = (direction) => {
+    setQuantity((current) => {
+      const currentValue = Number(current);
+      const base = Number.isInteger(currentValue) && currentValue > 0 ? currentValue : 1;
+      const nextValue = direction === "up" ? base + 1 : Math.max(1, base - 1);
+      return String(nextValue);
+    });
+    setError("");
+  };
+
+  const reviewDisabledReason = useMemo(() => {
+    if (!user) return "Sign in before placing an order.";
+    if (!symbol) return "Symbol is required.";
+    if (!String(symbol).toUpperCase().endsWith(".NS")) return "Select a valid NSE symbol before placing an order.";
+    if (!hasValidPrice) return "Market price is unavailable. Try again after the quote loads.";
+    if (!quantity) return "Enter a quantity to continue.";
+    if (!hasQuantity) return "Quantity must be a positive whole number.";
     if (side === "BUY" && Number.isFinite(availableCash) && estimatedNotional > availableCash) {
-      setError("Insufficient virtual funds for this buy order");
-      return null;
+      return "Insufficient virtual funds for this buy order.";
+    }
+    if (side === "SELL" && parsedQuantity > holdingQuantity) {
+      return `You only own ${holdingQuantity.toLocaleString("en-IN")} ${holdingQuantity === 1 ? "share" : "shares"}. Reduce the quantity to continue.`;
     }
     if (needsTrigger && (!Number.isFinite(Number(triggerPrice)) || Number(triggerPrice) <= 0)) {
-      setError("Trigger price is required for stop orders");
-      return null;
+      return "Enter a valid Trigger Price.";
     }
     if (needsLimit && (!Number.isFinite(Number(limitPrice)) || Number(limitPrice) <= 0)) {
-      setError("Limit price is required for limit orders");
-      return null;
+      return "Enter a valid Limit Price.";
     }
     if (orderType === "STOP_LIMIT" && side === "BUY" && Number(limitPrice) < Number(triggerPrice)) {
-      setError("Buy stop-limit price must be greater than or equal to trigger price");
-      return null;
+      return "Buy stop-limit price must be greater than or equal to trigger price.";
     }
     if (orderType === "STOP_LIMIT" && side === "SELL" && Number(limitPrice) > Number(triggerPrice)) {
-      setError("Sell stop-limit price must be less than or equal to trigger price");
+      return "Sell stop-limit price must be less than or equal to trigger price.";
+    }
+    return "";
+  }, [availableCash, estimatedNotional, hasQuantity, hasValidPrice, holdingQuantity, limitPrice, needsLimit, needsTrigger, orderType, parsedQuantity, quantity, side, symbol, triggerPrice, user]);
+
+  const validateOrder = useCallback(() => {
+    if (reviewDisabledReason) {
+      setError(reviewDisabledReason);
       return null;
     }
 
@@ -284,13 +336,13 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
       symbol: symbol.toUpperCase(),
       side,
       orderType,
-      quantity: parsedQuantity,
+      quantity: Number(quantity),
       referencePrice: lastPrice,
       triggerPrice: needsTrigger ? Number(triggerPrice) : null,
       limitPrice: needsLimit ? Number(limitPrice) : null,
       estimatedNotional
     };
-  }, [availableCash, estimatedNotional, hasValidPrice, lastPrice, limitPrice, needsLimit, needsTrigger, orderType, quantity, side, symbol, triggerPrice, user]);
+  }, [estimatedNotional, lastPrice, limitPrice, needsLimit, needsTrigger, orderType, quantity, reviewDisabledReason, side, symbol, triggerPrice]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -370,49 +422,76 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
     }
   };
 
+  const holdingText = holdingsLoading ? "Loading holdings..." : `${holdingQuantity.toLocaleString("en-IN")} ${holdingQuantity === 1 ? "share" : "shares"}`;
+  const remainingAfterSell = hasQuantity ? Math.max(0, holdingQuantity - parsedQuantity) : holdingQuantity;
+  const orderTypeName = getOrderTypeLabel(orderType);
+  const marketConsequence = marketStatus.open
+    ? `${marketStatus.displayState} - eligible Market orders may execute when submitted.`
+    : `${marketStatus.displayState} - this Market order will remain Pending until the next valid session.`;
+
   return (
-    <GlassPanel className="w-full min-w-0 space-y-6" data-tour="order-ticket">
+    <GlassPanel className="w-full min-w-0 space-y-5" data-tour="order-ticket">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase text-[#A1A1B5]">Order Ticket</p>
-          <h3 className="mt-2 text-lg font-semibold text-white">Place and manage orders</h3>
+          <p className="text-xs font-semibold uppercase text-cyan">Place Order</p>
+          <h3 className="mt-2 text-xl font-semibold text-white">{symbol || "Select a stock"}</h3>
         </div>
-        <Link to="/orders" className="rounded-2xl border border-white/10 px-3 py-1 text-xs text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan">
+        <Link to="/orders" className="rounded-lg border border-white/10 px-3 py-1 text-xs text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan">
           Order History
         </Link>
-      </div>
-
-      <MarketStatusBadge quote={quote} />
-
-      <div className="rounded-2xl border border-white/10 bg-[#080910]/70 p-4">
-        <p className="text-xs font-medium uppercase text-[#A1A1B5]">Symbol</p>
-        <p className="mt-2 text-2xl font-semibold text-white">{symbol || "N/A"}</p>
-        <p className="mt-2 text-xs text-[#A1A1B5]">
-          Last traded price: <span className="text-white">{loading ? "Loading..." : hasValidPrice ? formatCurrency(lastPrice) : "Unavailable"}</span>
-        </p>
-        <p className="mt-1 flex items-center gap-2 text-xs text-[#A1A1B5]">
-          Available virtual cash: <span className="text-white">{formatCurrency(availableCash)}</span>
-          <HelpTooltip term="availableBalance" label="Available Balance" />
-        </p>
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { value: "BUY", label: "Buy", tone: "text-emerald-300 border-emerald-500/30 bg-emerald-500/10" },
-            { value: "SELL", label: "Sell", tone: "text-red-300 border-red-500/30 bg-red-500/10" }
+            { value: "BUY", label: "BUY", caption: "Use virtual cash", tone: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" },
+            { value: "SELL", label: "SELL", caption: "Exit owned shares", tone: "text-red-300 border-red-500/40 bg-red-500/10" }
           ].map((item) => (
             <button
               key={item.value}
               type="button"
-              onClick={() => setSide(item.value)}
-              className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+              onClick={() => {
+                setSide(item.value);
+                setError("");
+              }}
+              aria-pressed={side === item.value}
+              className={`min-h-16 rounded-lg border px-4 py-3 text-left transition ${
                 side === item.value ? item.tone : "border-white/10 bg-[#080910]/60 text-[#C2C4D2] hover:border-white/10"
               }`}
             >
-              {item.label}
+              <span className="block text-base font-bold">{item.label}</span>
+              <span className="mt-1 block text-xs font-medium opacity-80">{item.caption}</span>
             </button>
           ))}
+        </div>
+
+        <div className="rounded-lg border border-white/10 bg-[#080910]/70 p-4">
+          <div className="grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium uppercase text-[#A1A1B5]">Current Price</p>
+              <p className="mt-1 font-mono text-lg font-semibold text-white">
+                {loading ? "Loading..." : hasValidPrice ? formatCurrency(lastPrice) : "Unavailable"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase text-[#A1A1B5]">
+                {side === "BUY" ? "Available Balance" : "Shares You Own"}
+              </p>
+              <p className="mt-1 flex items-center gap-2 font-mono text-lg font-semibold text-white">
+                {side === "BUY" ? formatCurrency(availableCash) : holdingText}
+                {side === "BUY" ? <HelpTooltip term="availableBalance" label="Available Balance" /> : null}
+              </p>
+            </div>
+          </div>
+          {side === "SELL" ? (
+            <div className={`mt-3 rounded-lg border px-3 py-2 text-xs leading-5 ${
+              holdingQuantity > 0 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-amber-500/30 bg-amber-500/10 text-amber-200"
+            }`}>
+              {holdingQuantity > 0
+                ? `Available to sell: ${holdingText}.`
+                : "You don't currently own this stock. Buy shares before trying to sell."}
+            </div>
+          ) : null}
         </div>
 
         <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
@@ -429,33 +508,63 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
               const nextType = event.target.value;
               setOrderType(nextType);
               resetPriceFields(nextType);
+              setError("");
             }}
-            className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
+            className="rounded-lg border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
           >
             {orderTypes.map((item) => (
               <option key={item.value} value={item.value}>{item.label}</option>
             ))}
           </select>
           <span className="normal-case leading-5 text-[#8F93A6]">
-            {orderTypeHelperText[orderType]}{" "}
+            <span className="font-semibold text-[#C2C4D2]">{orderTypeName} Order.</span> {orderTypeHelperText[orderType]}{" "}
             <Link to="/trading-guide#order-types" className="font-semibold text-cyan hover:text-cyan-100">
               Which order type should I use?
             </Link>
           </span>
         </label>
 
-        <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
-          Quantity
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-            className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
-            placeholder="Enter shares"
-          />
-        </label>
+        <div className="rounded-lg border border-white/10 bg-[#080910]/70 p-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="order-quantity" className="text-xs font-semibold uppercase text-[#A1A1B5]">
+              Quantity
+            </label>
+            <HelpTooltip term="quantity" label="Quantity" />
+          </div>
+          <p className="mt-1 text-xs text-[#8F93A6]">Quantity means how many shares you want to buy or sell.</p>
+          <div className="mt-3 grid grid-cols-[48px_minmax(0,1fr)_48px] gap-2">
+            <button
+              type="button"
+              onClick={() => stepQuantity("down")}
+              aria-label="Decrease quantity"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white/10 bg-panel text-white transition hover:border-cyan/40 hover:text-cyan"
+            >
+              <Minus className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <input
+              id="order-quantity"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={quantity}
+              onChange={(event) => updateQuantity(event.target.value)}
+              className="min-h-12 rounded-lg border border-white/10 bg-[var(--bg-input)] px-4 text-center text-xl font-semibold text-white outline-none focus:border-cyan"
+              placeholder="Enter number of shares"
+            />
+            <button
+              type="button"
+              onClick={() => stepQuantity("up")}
+              aria-label="Increase quantity"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white/10 bg-panel text-white transition hover:border-cyan/40 hover:text-cyan"
+            >
+              <Plus className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="mt-3 text-sm font-medium text-[#C2C4D2]">
+            {hasQuantity
+              ? `You are ${side === "BUY" ? "buying" : "selling"} ${parsedQuantity.toLocaleString("en-IN")} ${parsedQuantity === 1 ? "share" : "shares"}.`
+              : "Enter number of shares."}
+          </p>
+        </div>
 
         {needsTrigger ? (
           <label className="flex flex-col gap-2 text-xs font-medium uppercase text-[#A1A1B5]">
@@ -468,8 +577,11 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
               min="0"
               step="0.05"
               value={triggerPrice}
-              onChange={(event) => setTriggerPrice(event.target.value)}
-              className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
+              onChange={(event) => {
+                setTriggerPrice(event.target.value);
+                setError("");
+              }}
+              className="rounded-lg border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
               placeholder="Price that activates the stop order"
             />
           </label>
@@ -486,38 +598,64 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
               min="0"
               step="0.05"
               value={limitPrice}
-              onChange={(event) => setLimitPrice(event.target.value)}
-              className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
+              onChange={(event) => {
+                setLimitPrice(event.target.value);
+                setError("");
+              }}
+              className="rounded-lg border border-white/10 bg-[#080910]/70 px-4 py-3 text-sm text-white outline-none focus:border-cyan"
               placeholder="Execution limit"
             />
           </label>
         ) : null}
 
-        <div className="rounded-2xl border border-white/10 bg-[#080910]/70 px-4 py-4 text-sm text-[#C2C4D2]">
-          <div className="flex items-center justify-between gap-3">
-            <span>Estimated Order Value</span>
-            <span className="font-mono text-white">{formatCurrency(estimatedNotional)}</span>
+        <div className="rounded-lg border border-cyan/20 bg-cyan/10 px-4 py-4 text-sm text-[#C2C4D2]">
+          <p className="text-xs font-semibold uppercase text-cyan">Order Estimate</p>
+          <div className="mt-3 flex flex-col gap-1">
+            <span className="font-mono text-sm text-white">
+              {hasQuantity && Number.isFinite(estimatedPrice)
+                ? `${parsedQuantity.toLocaleString("en-IN")} ${parsedQuantity === 1 ? "share" : "shares"} x ${formatCurrency(estimatedPrice)}`
+                : "Enter quantity to calculate estimate"}
+            </span>
+            <span className="font-mono text-2xl font-semibold text-white">Approx. {formatCurrency(estimatedNotional)}</span>
           </div>
-          <p className="mt-2 text-xs text-[#6F7487]">
-            {orderType === "MARKET"
-              ? "Market orders use the current quote if sufficient virtual cash or holdings are available."
-              : orderType === "LIMIT"
-                ? "Limit orders sit pending until the market reaches your price."
-                : orderType === "STOP_LOSS"
-                  ? "Stop-Loss orders become active when the trigger price is reached."
-                  : "Stop-Limit orders activate on the trigger, then wait for the limit price."}
+          <p className="mt-3 text-xs leading-5 text-[#8F93A6]">
+            {side === "BUY"
+              ? `Approximate amount from virtual balance: ${formatCurrency(estimatedNotional)}.`
+              : `Approximate sale value: ${formatCurrency(estimatedNotional)}.`}
           </p>
+          {hasQuantity ? (
+            <p className="mt-3 text-sm leading-6 text-white">
+              {side === "BUY"
+                ? `You are buying ${parsedQuantity.toLocaleString("en-IN")} ${parsedQuantity === 1 ? "share" : "shares"} of ${symbol} using virtual money.`
+                : `You are selling ${parsedQuantity.toLocaleString("en-IN")} of your ${holdingQuantity.toLocaleString("en-IN")} shares. ${remainingAfterSell.toLocaleString("en-IN")} shares will remain if this order executes.`}
+            </p>
+          ) : null}
+          {orderType === "MARKET" ? (
+            <p className="mt-3 text-xs leading-5 text-[#8F93A6]">
+              Final execution price may differ slightly from the displayed quote.
+            </p>
+          ) : null}
         </div>
+
+        <div className="rounded-lg border border-white/10 bg-[#080910]/70 px-4 py-3 text-xs leading-5 text-[#A1A1B5]">
+          {orderType === "MARKET" ? marketConsequence : `${orderTypeName} order - execution depends on your entered price condition and market availability.`}
+        </div>
+
+        {reviewDisabledReason ? (
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            {reviewDisabledReason}
+          </p>
+        ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="submit"
-            disabled={submitting || loading || !hasValidPrice}
-            className="flex-1 rounded-2xl border border-cyan/60 bg-cyan/10 px-4 py-3 text-sm font-semibold text-cyan transition hover:bg-cyan/20 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={submitting || loading || Boolean(reviewDisabledReason)}
+            className="flex-1 rounded-lg bg-cyan px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Review Order
           </button>
-          <Link to="/orders" className="flex-1 rounded-2xl border border-white/10 px-4 py-3 text-center text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan">
+          <Link to="/orders" className="flex-1 rounded-lg border border-white/10 px-4 py-3 text-center text-sm font-semibold text-[#C2C4D2] transition hover:border-cyan/40 hover:text-cyan">
             Track Orders
           </Link>
         </div>

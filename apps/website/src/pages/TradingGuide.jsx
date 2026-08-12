@@ -41,7 +41,7 @@ const dispatchEvent = (eventName) => {
 
 const TradingGuide = () => {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <PageHeader
           title="Trading Guide"
@@ -181,7 +181,7 @@ const TradingGuide = () => {
 
         <GuideCard id="market-hours" title="Market Hours" eyebrow="Timing matters">
           <p>
-            NSE session: 09:15 AM - 03:30 PM Asia/Kolkata, Monday-Friday, excluding configured exchange holidays. Eligible Market orders outside trading hours may remain Pending.
+            NSE regular market session: 09:15 AM - 03:30 PM Asia/Kolkata, Monday-Friday, excluding configured exchange holidays. Eligible Market orders outside trading hours may remain Pending.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
