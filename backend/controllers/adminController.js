@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Competition = require("../models/Competition");
 const Order = require("../models/Order");
+const Portfolio = require("../models/Portfolio");
 const mongoose = require("mongoose");
 const { syncNseEquityInstruments } = require("../services/instrumentService");
 const { cleanupTestingData } = require("../services/testingDataCleanupService");
@@ -9,8 +10,41 @@ const { testingAccountFilter } = require("../utils/testData");
 
 const getUsers = async (req, res, next) => {
   try {
-    const users = await User.find(testingAccountFilter).select("name email role balance createdAt");
-    return res.json(users);
+    const users = await User.find(testingAccountFilter)
+      .select("name email role balance createdAt")
+      .lean();
+    const userIds = users.map((user) => user._id);
+    const holdingAgg = await Portfolio.aggregate([
+      { $match: { userId: { $in: userIds } } },
+      {
+        $group: {
+          _id: "$userId",
+          holdingsCount: { $sum: 1 },
+          totalQuantity: { $sum: "$quantity" },
+          holdingsCost: { $sum: "$totalInvested" }
+        }
+      }
+    ]);
+    const holdingsByUser = holdingAgg.reduce((acc, item) => {
+      acc[String(item._id)] = item;
+      return acc;
+    }, {});
+
+    return res.json(
+      users.map((user) => {
+        const holding = holdingsByUser[String(user._id)] || {};
+        const availableCash = Number(user.balance) || 0;
+        const holdingsCost = Number(holding.holdingsCost) || 0;
+        return {
+          ...user,
+          availableCash,
+          holdingsCount: Number(holding.holdingsCount) || 0,
+          totalQuantity: Number(holding.totalQuantity) || 0,
+          holdingsCost,
+          estimatedEquity: availableCash + holdingsCost
+        };
+      })
+    );
   } catch (err) {
     return next(err);
   }
@@ -43,13 +77,32 @@ const updateUserBalance = async (req, res, next) => {
       req.params.id,
       { balance },
       { new: true, select: "name email role balance createdAt" }
-    );
+    ).lean();
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    return res.json(user);
+    const holdings = await Portfolio.aggregate([
+      { $match: { userId: user._id } },
+      {
+        $group: {
+          _id: "$userId",
+          holdingsCount: { $sum: 1 },
+          totalQuantity: { $sum: "$quantity" },
+          holdingsCost: { $sum: "$totalInvested" }
+        }
+      }
+    ]);
+    const holding = holdings[0] || {};
+    return res.json({
+      ...user,
+      availableCash: Number(user.balance) || 0,
+      holdingsCount: Number(holding.holdingsCount) || 0,
+      totalQuantity: Number(holding.totalQuantity) || 0,
+      holdingsCost: Number(holding.holdingsCost) || 0,
+      estimatedEquity: (Number(user.balance) || 0) + (Number(holding.holdingsCost) || 0)
+    });
   } catch (err) {
     return next(err);
   }

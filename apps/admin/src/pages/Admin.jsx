@@ -1,5 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { Archive, CircleAlert, RefreshCcw, Save, Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  Activity,
+  Archive,
+  Banknote,
+  CheckCircle2,
+  CircleAlert,
+  Clock3,
+  Gauge,
+  ListChecks,
+  RefreshCcw,
+  Save,
+  Search,
+  ShieldCheck,
+  TrendingUp,
+  UsersRound,
+  WalletCards,
+  XCircle
+} from "lucide-react";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import { Skeleton } from "../components/Skeleton";
@@ -24,6 +42,9 @@ const formatCurrency = (value) =>
 const formatNumber = (value) =>
   Number.isFinite(Number(value)) ? number.format(Number(value)) : "-";
 
+const formatPercent = (value) =>
+  Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}%` : "-";
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   return new Date(value).toLocaleString("en-IN", {
@@ -33,6 +54,11 @@ const formatDateTime = (value) => {
     hour: "2-digit",
     minute: "2-digit"
   });
+};
+
+const toNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const typeTone = {
@@ -55,12 +81,67 @@ const statusTone = {
 
 const orderStatuses = ["Pending", "Triggered", "Executed", "Cancelled", "Rejected"];
 
-const StatCard = ({ label, value, detail }) => (
-  <GlassPanel className="min-h-[120px] border-l-4 border-l-cyan/70">
-    <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-    <p className="mt-3 text-2xl font-semibold tracking-tight text-white md:text-3xl">{value}</p>
-    {detail ? <p className="mt-2 text-xs leading-5 text-slate-400">{detail}</p> : null}
+const toneMap = {
+  cyan: "border-l-cyan/70 bg-cyan/5 text-cyan",
+  blue: "border-l-blue-500/70 bg-blue-500/5 text-blue-300",
+  emerald: "border-l-emerald-500/70 bg-emerald-500/5 text-emerald-300",
+  amber: "border-l-amber-500/70 bg-amber-500/5 text-amber-300",
+  red: "border-l-red-500/70 bg-red-500/5 text-red-300",
+  slate: "border-l-slate-500/70 bg-slate-500/5 text-slate-300"
+};
+
+const StatCard = ({ label, value, detail, icon: Icon, tone = "cyan" }) => (
+  <GlassPanel className={`min-h-[128px] border-l-4 ${toneMap[tone] || toneMap.cyan}`}>
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+        <p className="mt-3 text-2xl font-semibold tracking-tight text-white md:text-3xl">{value}</p>
+      </div>
+      {Icon ? (
+        <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-current/20 bg-current/10 ${toneMap[tone]?.split(" ").at(-1) || "text-cyan"}`}>
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
+      ) : null}
+    </div>
+    {detail ? <p className="mt-3 text-xs leading-5 text-slate-400">{detail}</p> : null}
   </GlassPanel>
+);
+
+const PanelHeader = ({ eyebrow, title, action }) => (
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      {eyebrow ? <p className="text-xs font-semibold uppercase text-slate-500">{eyebrow}</p> : null}
+      <h3 className="mt-1 text-lg font-semibold text-white">{title}</h3>
+    </div>
+    {action}
+  </div>
+);
+
+const ProgressBar = ({ label, value, count, tone = "bg-cyan" }) => (
+  <div className="space-y-2">
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <span className="font-semibold text-slate-300">{label}</span>
+      <span className="font-mono text-slate-400">{formatNumber(count)} / {formatPercent(value)}</span>
+    </div>
+    <div className="h-2 overflow-hidden rounded-full bg-base">
+      <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(0, Math.min(100, value || 0))}%` }} />
+    </div>
+  </div>
+);
+
+const InsightRow = ({ icon: Icon, label, value, detail, tone = "text-cyan" }) => (
+  <div className="flex items-start justify-between gap-4 rounded-lg border border-borderGlow bg-base p-4">
+    <div className="flex min-w-0 items-start gap-3">
+      <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-current/20 bg-current/10 ${tone}`}>
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-white">{label}</p>
+        {detail ? <p className="mt-1 text-xs leading-5 text-slate-400">{detail}</p> : null}
+      </div>
+    </div>
+    <p className="shrink-0 text-right font-mono text-sm font-semibold text-white">{value}</p>
+  </div>
 );
 
 const LoadingState = () => (
@@ -127,9 +208,11 @@ const Badge = ({ children, className }) => (
 
 const TableShell = ({ children }) => (
   <div className="overflow-x-auto rounded-lg border border-borderGlow">
-    <div className="min-w-[1120px] divide-y divide-borderGlow">{children}</div>
+    <div className="min-w-[1280px] divide-y divide-borderGlow">{children}</div>
   </div>
 );
+
+const tableHeaderClass = "admin-table-header grid bg-slate-900/50 px-4 py-3 text-xs font-semibold uppercase";
 
 const Admin = ({ view = "dashboard" }) => {
   const [loading, setLoading] = useState(true);
@@ -201,21 +284,58 @@ const Admin = ({ view = "dashboard" }) => {
     const totalVolume = transactions.reduce((sum, transaction) => sum + (Number(transaction.total) || 0), 0);
     const buyCount = transactions.filter((transaction) => transaction.type === "BUY").length;
     const sellCount = transactions.filter((transaction) => transaction.type === "SELL").length;
+    const todayKey = new Date().toDateString();
+    const todayTransactions = transactions.filter((transaction) => {
+      const date = transaction.timestamp || transaction.createdAt;
+      return date ? new Date(date).toDateString() === todayKey : false;
+    });
+    const todayVolume = todayTransactions.reduce((sum, transaction) => sum + toNumber(transaction.total), 0);
     const orderCounts = orders.reduce((acc, order) => {
       acc[order.status || "Unknown"] = (acc[order.status || "Unknown"] || 0) + 1;
       return acc;
     }, {});
+    const pendingOrders = orders.filter((order) => ["Pending", "Triggered"].includes(order.status));
+    const rejectedOrders = orders.filter((order) => order.status === "Rejected");
+    const executedOrders = orders.filter((order) => order.status === "Executed");
+    const activeCompetitions = competitions.filter((competition) => competition.status === "active" && !competition.archived);
+    const upcomingCompetitions = competitions.filter((competition) => competition.status === "upcoming" && !competition.archived);
+    const totalAvailableCash = users.reduce((sum, user) => sum + toNumber(user.availableCash ?? user.balance), 0);
+    const totalHoldingsCost = users.reduce((sum, user) => sum + toNumber(user.holdingsCost), 0);
+    const totalEstimatedEquity = users.reduce((sum, user) => sum + toNumber(user.estimatedEquity), 0);
+    const userAccounts = users.filter((user) => user.role !== "admin");
+    const adminAccounts = users.filter((user) => user.role === "admin");
+    const largestAccount = [...users].sort((left, right) => toNumber(right.estimatedEquity) - toNumber(left.estimatedEquity))[0] || null;
+    const executionRate = orders.length ? (executedOrders.length / orders.length) * 100 : 0;
+    const rejectionRate = orders.length ? (rejectedOrders.length / orders.length) * 100 : 0;
+    const pendingRate = orders.length ? (pendingOrders.length / orders.length) * 100 : 0;
 
     return {
       totalVolume,
       buyCount,
       sellCount,
+      todayTransactions,
+      todayVolume,
       orderCounts,
+      pendingOrders,
+      rejectedOrders,
+      executedOrders,
+      activeCompetitions,
+      upcomingCompetitions,
+      totalAvailableCash,
+      totalHoldingsCost,
+      totalEstimatedEquity,
+      userAccounts,
+      adminAccounts,
+      largestAccount,
+      executionRate,
+      rejectionRate,
+      pendingRate,
+      averageOrderValue: orders.length ? totalVolume / orders.length : 0,
       recentUsers: [...users].sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0)).slice(0, 5),
       recentTransactions: transactions.slice(0, 5),
       recentOrders: orders.slice(0, 5)
     };
-  }, [orders, transactions, users]);
+  }, [competitions, orders, transactions, users]);
 
   const filteredUsers = useMemo(() => {
     const query = userQuery.trim().toLowerCase();
@@ -278,7 +398,7 @@ const Admin = ({ view = "dashboard" }) => {
       const response = await api.patch(`/api/admin/users/${user._id}/balance`, { balance: nextBalance });
       const updated = response.data;
       setUsers((items) =>
-        items.map((item) => (item._id === updated._id ? { ...item, balance: updated.balance } : item))
+        items.map((item) => (item._id === updated._id ? { ...item, ...updated } : item))
       );
       setBalanceEdits((current) => {
         const next = { ...current };
@@ -340,43 +460,55 @@ const Admin = ({ view = "dashboard" }) => {
               <EmptyState>No users found.</EmptyState>
             ) : (
               <TableShell>
-                <div className="grid grid-cols-12 bg-slate-900/50 px-4 py-3 text-xs font-semibold uppercase text-slate-500">
-                  <span className="col-span-4">User</span>
-                  <span className="col-span-2">Role</span>
-                  <span className="col-span-4 text-right">Balance</span>
-                  <span className="col-span-2 text-right">Created</span>
+                <div className={`${tableHeaderClass} grid-cols-[minmax(260px,2fr)_120px_minmax(280px,2fr)_minmax(160px,1fr)_minmax(180px,1fr)_minmax(170px,1fr)]`}>
+                  <span>User</span>
+                  <span>Role</span>
+                  <span className="text-right">Available Cash</span>
+                  <span className="text-right">Holdings Cost</span>
+                  <span className="text-right">Estimated Equity</span>
+                  <span className="text-right">Created</span>
                 </div>
                 {filteredUsers.map((user) => (
-                  <div key={user._id} className="grid grid-cols-12 items-center gap-3 bg-panel px-4 py-4">
-                    <div className="col-span-4 min-w-0">
+                  <div key={user._id} className="grid grid-cols-[minmax(260px,2fr)_120px_minmax(280px,2fr)_minmax(160px,1fr)_minmax(180px,1fr)_minmax(170px,1fr)] items-center gap-3 bg-panel px-4 py-4">
+                    <div className="min-w-0">
                       <p className="truncate font-semibold text-white">{user.name || "Unnamed user"}</p>
                       <p className="truncate text-xs text-slate-400">{user.email}</p>
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       <Badge className={roleTone[user.role] || roleTone.user}>{user.role || "user"}</Badge>
                     </div>
-                    <div className="col-span-4 flex items-center justify-end gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        value={balanceEdits[user._id] ?? user.balance ?? ""}
-                        onChange={(event) =>
-                          setBalanceEdits((current) => ({ ...current, [user._id]: event.target.value }))
-                        }
-                        aria-label={`Virtual balance for ${user.email}`}
-                        className="h-10 w-40 rounded-lg border border-borderGlow bg-base px-3 text-right font-mono text-sm text-white outline-none transition focus:border-cyan focus:ring-2 focus:ring-cyan/20"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => saveUserBalance(user)}
-                        disabled={balanceSaving[user._id]}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-3 text-xs font-semibold text-cyan transition hover:bg-cyan/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Save className="h-4 w-4" aria-hidden="true" />
-                        {balanceSaving[user._id] ? "Saving" : "Save"}
-                      </button>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center justify-end gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          value={balanceEdits[user._id] ?? user.availableCash ?? user.balance ?? ""}
+                          onChange={(event) =>
+                            setBalanceEdits((current) => ({ ...current, [user._id]: event.target.value }))
+                          }
+                          aria-label={`Available cash for ${user.email}`}
+                          className="h-10 w-40 rounded-lg border border-borderGlow bg-base px-3 text-right font-mono text-sm text-white outline-none transition focus:border-cyan focus:ring-2 focus:ring-cyan/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveUserBalance(user)}
+                          disabled={balanceSaving[user._id]}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-cyan/40 bg-cyan/10 px-3 text-xs font-semibold text-cyan transition hover:bg-cyan/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/20 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Save className="h-4 w-4" aria-hidden="true" />
+                          {balanceSaving[user._id] ? "Saving" : "Save"}
+                        </button>
+                      </div>
+                      <p className="font-mono text-xs font-semibold text-slate-400">
+                        {formatCurrency(balanceEdits[user._id] ?? user.availableCash ?? user.balance)}
+                      </p>
                     </div>
-                    <p className="col-span-2 text-right text-sm text-slate-400">{formatDateTime(user.createdAt)}</p>
+                    <div className="text-right">
+                      <p className="font-mono text-sm font-semibold text-white">{formatCurrency(user.holdingsCost)}</p>
+                      <p className="text-xs text-slate-400">{formatNumber(user.holdingsCount)} holdings</p>
+                    </div>
+                    <p className="text-right font-mono text-sm font-semibold text-white">{formatCurrency(user.estimatedEquity)}</p>
+                    <p className="text-right text-sm text-slate-400">{formatDateTime(user.createdAt)}</p>
                   </div>
                 ))}
               </TableShell>
@@ -402,7 +534,7 @@ const Admin = ({ view = "dashboard" }) => {
             <EmptyState>No transactions found.</EmptyState>
           ) : (
             <TableShell>
-              <div className="grid grid-cols-12 bg-slate-900/50 px-4 py-3 text-xs font-semibold uppercase text-slate-500">
+              <div className={`${tableHeaderClass} grid-cols-12`}>
                 <span className="col-span-3">Instrument</span>
                 <span className="col-span-2">Type</span>
                 <span className="col-span-2 text-right">Quantity</span>
@@ -470,7 +602,7 @@ const Admin = ({ view = "dashboard" }) => {
               <EmptyState>No orders found.</EmptyState>
             ) : (
               <TableShell>
-                <div className="grid grid-cols-12 bg-slate-900/50 px-4 py-3 text-xs font-semibold uppercase text-slate-500">
+                <div className={`${tableHeaderClass} grid-cols-12`}>
                   <span className="col-span-2">Symbol</span>
                   <span className="col-span-1">Side</span>
                   <span className="col-span-1 text-right">Qty</span>
@@ -623,7 +755,7 @@ const Admin = ({ view = "dashboard" }) => {
               <EmptyState>No competitions found.</EmptyState>
             ) : (
               <TableShell>
-                <div className="grid grid-cols-12 bg-slate-900/50 px-4 py-3 text-xs font-semibold uppercase text-slate-500">
+                <div className={`${tableHeaderClass} grid-cols-12`}>
                   <span className="col-span-4">Competition</span>
                   <span className="col-span-2">Status</span>
                   <span className="col-span-2 text-right">Starting Balance</span>

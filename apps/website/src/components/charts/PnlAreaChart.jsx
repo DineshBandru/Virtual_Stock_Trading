@@ -7,6 +7,16 @@ import {
   Tooltip
 } from "recharts";
 
+const tooltipContentStyle = {
+  background: "#ffffff",
+  border: "1px solid rgba(15, 23, 42, 0.14)",
+  borderRadius: 8,
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.14)",
+  color: "#0f172a"
+};
+const tooltipLabelStyle = { color: "#334155", fontWeight: 700 };
+const tooltipItemStyle = { color: "#0f172a", fontWeight: 600 };
+
 const PnlAreaChart = ({ data = [] }) => {
   if (data.length === 0) {
     return (
@@ -28,7 +38,11 @@ const PnlAreaChart = ({ data = [] }) => {
           </defs>
           <XAxis dataKey="label" stroke="#64748B" tickLine={false} />
           <YAxis stroke="#64748B" tickLine={false} />
-          <Tooltip contentStyle={{ background: "#0F111A", borderColor: "#1C2333" }} />
+          <Tooltip
+            contentStyle={tooltipContentStyle}
+            labelStyle={tooltipLabelStyle}
+            itemStyle={tooltipItemStyle}
+          />
           <Area
             type="monotone"
             dataKey="value"

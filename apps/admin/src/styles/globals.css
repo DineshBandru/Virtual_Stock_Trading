@@ -62,6 +62,21 @@ body {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
 }
 
+.admin-table-header {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+  letter-spacing: 0.04em;
+}
+
+.dark .admin-table-header {
+  background-color: #172131 !important;
+  color: #cbd5e1 !important;
+}
+
+:root:not(.dark) .admin-table-header :where(span, p, div) {
+  color: #334155 !important;
+}
+
 .admin-shell :where(button, summary, [role="button"], a[href]) {
   transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
   transition-duration: 180ms;

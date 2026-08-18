@@ -41,6 +41,21 @@ import socket from "../utils/socket";
 
 const STARTING_CAPITAL = 1000000;
 const chartColors = ["#38BDF8", "#64748B", "#22C55E", "#EF4444", "#94A3B8", "#2563EB", "#475569", "#0EA5E9"];
+const chartTooltipContentStyle = {
+  background: "#ffffff",
+  border: "1px solid rgba(15, 23, 42, 0.14)",
+  borderRadius: 8,
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.14)",
+  color: "#0f172a"
+};
+const chartTooltipLabelStyle = {
+  color: "#334155",
+  fontWeight: 700
+};
+const chartTooltipItemStyle = {
+  color: "#0f172a",
+  fontWeight: 600
+};
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined || value === "") return "Unavailable";
@@ -613,11 +628,9 @@ const Portfolio = () => {
                   </Pie>
                   <Tooltip
                     formatter={(value, name, props) => [formatCurrency(value), `${props.payload.symbol} Allocation`]}
-                    contentStyle={{
-                      background: "rgba(7, 11, 20, 0.96)",
-                      border: "1px solid rgba(148, 163, 184, 0.2)",
-                      borderRadius: 16
-                    }}
+                    contentStyle={chartTooltipContentStyle}
+                    labelStyle={chartTooltipLabelStyle}
+                    itemStyle={chartTooltipItemStyle}
                   />
                   <Legend />
                 </RePieChart>
@@ -719,11 +732,9 @@ const Portfolio = () => {
                 <Tooltip
                   formatter={(value) => formatCurrency(value)}
                   labelFormatter={(label) => `Date ${label}`}
-                  contentStyle={{
-                    background: "rgba(7, 11, 20, 0.96)",
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 8
-                  }}
+                  contentStyle={chartTooltipContentStyle}
+                  labelStyle={chartTooltipLabelStyle}
+                  itemStyle={chartTooltipItemStyle}
                 />
                 <Area type="monotone" dataKey="equity" stroke="#38BDF8" fill="rgba(56, 189, 248, 0.14)" strokeWidth={2} />
               </AreaChart>
@@ -746,11 +757,9 @@ const Portfolio = () => {
                 <Tooltip
                   formatter={(value) => [`${Number(value).toFixed(2)}%`, "Growth"]}
                   labelFormatter={(label) => `Date ${label}`}
-                  contentStyle={{
-                    background: "rgba(7, 11, 20, 0.96)",
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 8
-                  }}
+                  contentStyle={chartTooltipContentStyle}
+                  labelStyle={chartTooltipLabelStyle}
+                  itemStyle={chartTooltipItemStyle}
                 />
                 <Line type="monotone" dataKey="growth" stroke="#38BDF8" strokeWidth={2.5} dot={false} />
               </ReLineChart>
@@ -775,11 +784,9 @@ const Portfolio = () => {
                 <Tooltip
                   formatter={(value) => [`${Number(value).toFixed(2)}%`, "Daily Return"]}
                   labelFormatter={(label) => `Date ${label}`}
-                  contentStyle={{
-                    background: "rgba(7, 11, 20, 0.96)",
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 8
-                  }}
+                  contentStyle={chartTooltipContentStyle}
+                  labelStyle={chartTooltipLabelStyle}
+                  itemStyle={chartTooltipItemStyle}
                 />
                 <Bar dataKey="return" radius={[6, 6, 0, 0]}>
                   {derived.dailyReturns.map((entry, index) => (
@@ -806,11 +813,9 @@ const Portfolio = () => {
                 <Tooltip
                   formatter={(value) => [`${Number(value).toFixed(2)}%`, "Daily Return"]}
                   labelFormatter={(label) => `Date ${label}`}
-                  contentStyle={{
-                    background: "rgba(7, 11, 20, 0.96)",
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    borderRadius: 8
-                  }}
+                  contentStyle={chartTooltipContentStyle}
+                  labelStyle={chartTooltipLabelStyle}
+                  itemStyle={chartTooltipItemStyle}
                 />
                 <Line type="monotone" dataKey="return" stroke="#38BDF8" strokeWidth={2.5} dot={false} />
               </ReLineChart>
