@@ -40,9 +40,11 @@ export const getNseMarketStatus = (quote = null) => {
     open,
     label: `NSE ${displayState}`,
     displayState,
-    dot: open ? "bg-emerald-400" : "bg-amber-400",
-    textTone: open ? "text-emerald-400" : "text-amber-300",
-    tone: open ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-amber-500/30 bg-amber-500/10 text-amber-200",
+    dot: open ? "bg-emerald-500 dark:bg-emerald-400" : "bg-amber-500 dark:bg-amber-400",
+    textTone: open ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300",
+    tone: open
+      ? "border-emerald-500/40 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+      : "border-amber-500/40 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
     helper: open
       ? "Eligible Market orders may execute using available market data."
       : "Market orders placed now will remain Pending until the market opens.",

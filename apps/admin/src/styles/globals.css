@@ -62,6 +62,67 @@ body {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
 }
 
+.admin-shell :where(button, summary, [role="button"], a[href]) {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.admin-shell :where(input, select, textarea) {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.admin-shell :where(button, summary, [role="button"], a[href], input, select, textarea):focus-visible {
+  outline: 2px solid rgba(var(--admin-color-accent), 0.72);
+  outline-offset: 2px;
+}
+
+.admin-shell :where(button:disabled, [aria-disabled="true"]) {
+  transform: none;
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-shell :where(button:not(:disabled), summary, [role="button"]):hover,
+  .admin-shell a[href]:where([class*="rounded"], [class*="border"], [class*="bg-"]):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+  }
+
+  .dark .admin-shell :where(button:not(:disabled), summary, [role="button"]):hover,
+  .dark .admin-shell a[href]:where([class*="rounded"], [class*="border"], [class*="bg-"]):hover {
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  }
+
+  .admin-shell :where(button:not(:disabled), summary, [role="button"]):active,
+  .admin-shell a[href]:where([class*="rounded"], [class*="border"], [class*="bg-"]):active {
+    transform: translateY(0);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+  }
+
+  .admin-shell :where(input:not(:disabled), select:not(:disabled), textarea:not(:disabled)):hover {
+    border-color: rgba(var(--admin-color-accent), 0.42) !important;
+    box-shadow: 0 0 0 3px rgba(var(--admin-color-accent), 0.08);
+  }
+
+  .admin-shell summary:hover {
+    background-color: var(--admin-panel-elevated);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell :where(button, summary, [role="button"], a[href], input, select, textarea) {
+    transition-duration: 1ms;
+  }
+
+  .admin-shell :where(button, summary, [role="button"], a[href]):hover,
+  .admin-shell :where(button, summary, [role="button"], a[href]):active {
+    transform: none;
+  }
+}
+
 .auth-shell {
   background:
     radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.12), transparent 34%),

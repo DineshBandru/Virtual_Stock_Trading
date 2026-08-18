@@ -29,3 +29,6 @@ coverage/
 tmp/
 temp/
 test-output/
+
+# Local database exports/backups are not source code.
+backup/

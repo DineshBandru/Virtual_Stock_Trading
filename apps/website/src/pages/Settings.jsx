@@ -390,7 +390,7 @@ const Settings = () => {
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <PageHeader title="Settings" subtitle="Manage account details, security controls, notifications, and appearance." />
 
       <div className="flex flex-col gap-6">

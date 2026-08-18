@@ -776,58 +776,6 @@ const Dashboard = () => {
             </div>
           </GlassPanel>
 
-          <GlassPanel>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-[#A1A1B5]">
-                  Market News
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-white">Latest market headlines</h3>
-              </div>
-              <span className="text-xs text-[#A1A1B5]">Clickable cards</span>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              {newsItems.length === 0 ? (
-                <p className="text-sm text-[#A1A1B5]">No news feed available right now.</p>
-              ) : (
-                newsItems.map((item, index) => {
-                  const timestamp = item.datetime
-                    ? new Date(item.datetime * 1000).toLocaleString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })
-                    : "Just now";
-
-                  return (
-                    <a
-                      key={`${item.headline}-${index}`}
-                      href={item.url || "#"}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block rounded-2xl border border-white/10 bg-[#080910] px-4 py-4 transition hover:border-cyan/40 hover:bg-[#1A1B2B]"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-cyan">
-                            {item.source || "Market News"}
-                          </p>
-                          <p className="mt-2 line-clamp-2 text-sm font-medium text-white">
-                            {item.headline || item.summary || "Market update"}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-md border border-white/10 px-3 py-1 text-xs text-[#A1A1B5]">
-                          {timestamp}
-                        </span>
-                      </div>
-                    </a>
-                  );
-                })
-              )}
-            </div>
-          </GlassPanel>
         </div>
 
         <div className="space-y-6 xl:col-span-4">
@@ -948,6 +896,59 @@ const Dashboard = () => {
             </div>
           </GlassPanel>
         </div>
+
+        <GlassPanel className="xl:col-span-12">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-[#A1A1B5]">
+                Market News
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-white">Latest market headlines</h3>
+            </div>
+            <span className="text-xs text-[#A1A1B5]">Clickable cards</span>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {newsItems.length === 0 ? (
+              <p className="text-sm text-[#A1A1B5]">No news feed available right now.</p>
+            ) : (
+              newsItems.map((item, index) => {
+                const timestamp = item.datetime
+                  ? new Date(item.datetime * 1000).toLocaleString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })
+                  : "Just now";
+
+                return (
+                  <a
+                    key={`${item.headline}-${index}`}
+                    href={item.url || "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-2xl border border-white/10 bg-[#080910] px-4 py-4 transition hover:border-cyan/40 hover:bg-[#1A1B2B]"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-cyan">
+                          {item.source || "Market News"}
+                        </p>
+                        <p className="mt-2 line-clamp-2 text-sm font-medium text-white">
+                          {item.headline || item.summary || "Market update"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-md border border-white/10 px-3 py-1 text-xs text-[#A1A1B5]">
+                        {timestamp}
+                      </span>
+                    </div>
+                  </a>
+                );
+              })
+            )}
+          </div>
+        </GlassPanel>
       </div>
 
       <GlassPanel>

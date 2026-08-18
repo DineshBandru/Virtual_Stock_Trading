@@ -164,7 +164,7 @@ const AdminShell = ({ children }) => {
   }, [drawerOpen]);
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-base text-white lg:pl-[248px]">
+    <div className="admin-shell min-h-dvh overflow-x-hidden bg-base text-white lg:pl-[248px]">
       <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b border-borderGlow bg-[#0F1724]/95 px-4 backdrop-blur lg:hidden">
         <div className="flex items-center gap-3">
           <img src="/tradeabhyas-logo.png" alt="Trade Abhyas" className="h-10 w-10 rounded-lg object-contain" />

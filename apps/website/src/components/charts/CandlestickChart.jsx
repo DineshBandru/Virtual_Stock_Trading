@@ -109,6 +109,18 @@ const CandlestickChart = ({
   );
   const lineData = useMemo(() => buildLineSeries(candles), [candles]);
   const volumeData = useMemo(() => normalizeVolume(candles), [candles]);
+  const priceChartData = useMemo(
+    () =>
+      candles.map((item) => ({
+        label: formatTimeLabel(item.time),
+        close: Number(item.close),
+        open: Number(item.open),
+        high: Number(item.high),
+        low: Number(item.low),
+        volume: Number(item.volume) || 0
+      })),
+    [candles]
+  );
   const indicators = useMemo(
     () => ({
       SMA20: stripNullValues(calculateSMA(candles, 20)),
@@ -295,7 +307,7 @@ const CandlestickChart = ({
 
   if (loading) return <ChartSkeleton />;
 
-  if (error || candles.length === 0) {
+  if (candles.length === 0) {
     return (
       <div className="flex min-h-[320px] flex-col items-center justify-center rounded-lg border border-borderGlow/60 bg-base/70 px-6 text-center">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">Price history is temporarily unavailable.</p>
@@ -313,6 +325,11 @@ const CandlestickChart = ({
           <p className="text-[11px] uppercase tracking-[0.3em] text-slate-400">{symbol || title}</p>
           <h3 className="mt-1 text-lg font-semibold text-white">{title}</h3>
           <p className="mt-2 text-sm text-slate-400">{chartSubtitle}</p>
+          {historyMeta?.fallback ? (
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-300">
+              Showing estimated chart from the latest quote because historical candles are unavailable.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3 text-xs sm:flex-row sm:flex-wrap sm:items-center">
@@ -350,7 +367,39 @@ const CandlestickChart = ({
       </div>
 
       <div className="relative min-w-0 overflow-hidden rounded-lg border border-borderGlow/60 bg-[var(--bg-surface)]">
-        <div ref={containerRef} className="w-full" style={{ height }} />
+        <div className="w-full px-2 pb-3 pt-16" style={{ height }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={priceChartData} margin={{ top: 12, right: 18, bottom: 8, left: 4 }}>
+              <CartesianGrid stroke={themeKey === "dark" ? "rgba(148, 163, 184, 0.14)" : "rgba(100, 116, 139, 0.22)"} strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fill: themeKey === "dark" ? "#94A3B8" : "#475569", fontSize: 11 }} minTickGap={28} />
+              <YAxis
+                domain={["dataMin", "dataMax"]}
+                tick={{ fill: themeKey === "dark" ? "#94A3B8" : "#475569", fontSize: 11 }}
+                tickFormatter={(value) => Number(value).toFixed(0)}
+                width={58}
+              />
+              <Tooltip
+                contentStyle={themeKey === "dark" ? SmallChartTooltip : {
+                  background: "#ffffff",
+                  border: "1px solid rgba(15, 23, 42, 0.14)",
+                  borderRadius: 8,
+                  color: "#0f172a"
+                }}
+                formatter={(value, name) => [name === "close" ? formatPrice(value) : value, "Close"]}
+              />
+              <Line
+                type="monotone"
+                dataKey="close"
+                stroke={themeKey === "dark" ? "#22D3EE" : "#2563EB"}
+                strokeWidth={3}
+                dot={priceChartData.length <= 45 ? { r: 2, fill: themeKey === "dark" ? "#22D3EE" : "#2563EB" } : false}
+                activeDot={{ r: 5 }}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div ref={containerRef} className="hidden" style={{ height: 1 }} aria-hidden="true" />
         <div className="pointer-events-none absolute left-4 top-4 flex max-w-[calc(100%-2rem)] flex-col gap-1 rounded-lg border border-borderGlow/60 bg-panel/90 px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-slate-300 shadow-glow">
           <span>{symbol || title}</span>
           <span className="text-cyan-200">{chartSubtitle}</span>

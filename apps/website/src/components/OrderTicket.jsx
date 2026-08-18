@@ -444,8 +444,18 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { value: "BUY", label: "BUY", caption: "Use virtual cash", tone: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" },
-            { value: "SELL", label: "SELL", caption: "Exit owned shares", tone: "text-red-300 border-red-500/40 bg-red-500/10" }
+            {
+              value: "BUY",
+              label: "BUY",
+              caption: "Use virtual cash",
+              tone: "border-emerald-500/50 bg-emerald-50 shadow-sm shadow-emerald-500/10 dark:border-emerald-500/40 dark:bg-emerald-500/10"
+            },
+            {
+              value: "SELL",
+              label: "SELL",
+              caption: "Exit owned shares",
+              tone: "border-red-500/50 bg-red-50 shadow-sm shadow-red-500/10 dark:border-red-500/40 dark:bg-red-500/10"
+            }
           ].map((item) => (
             <button
               key={item.value}
@@ -455,12 +465,32 @@ const OrderTicket = ({ symbol, quote, loading, onPlaced }) => {
                 setError("");
               }}
               aria-pressed={side === item.value}
-              className={`min-h-16 rounded-lg border px-4 py-3 text-left transition ${
-                side === item.value ? item.tone : "border-white/10 bg-[#080910]/60 text-[#C2C4D2] hover:border-white/10"
+              className={`order-side-option order-side-${item.value.toLowerCase()} min-h-16 rounded-lg border px-4 py-3 text-left transition ${
+                side === item.value ? item.tone : "border-white/10 bg-[var(--bg-surface-raised)] hover:border-cyan/30 hover:bg-[var(--bg-muted)]"
               }`}
             >
-              <span className="block text-base font-bold">{item.label}</span>
-              <span className="mt-1 block text-xs font-medium opacity-80">{item.caption}</span>
+              <span
+                className={`order-side-label block text-base font-bold ${
+                  side === item.value
+                    ? item.value === "BUY"
+                      ? "text-emerald-800 dark:text-emerald-100"
+                      : "text-red-800 dark:text-red-100"
+                    : "text-slate-900 dark:text-slate-100"
+                }`}
+              >
+                {item.label}
+              </span>
+              <span
+                className={`order-side-caption mt-1 block text-xs font-medium ${
+                  side === item.value
+                    ? item.value === "BUY"
+                      ? "text-emerald-700 dark:text-emerald-200"
+                      : "text-red-700 dark:text-red-200"
+                    : "text-slate-700 dark:text-slate-300"
+                }`}
+              >
+                {item.caption}
+              </span>
             </button>
           ))}
         </div>
